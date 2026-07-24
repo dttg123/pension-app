@@ -2,29 +2,28 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f4f7fb">
 <meta name="description" content="연금저축과 IRP를 장기간 관리하는 개인연금 웹앱">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="icon" href="icon.svg" type="image/svg+xml"><rect width=%2264%22 height=%2264%22 rx=%2216%22 fill=%22%23176fe5%22/><path d=%22M17 35h30M20 27h24M24 19h16M22 43h20%22 stroke=%22white%22 stroke-width=%225%22 stroke-linecap=%22round%22/></svg>">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
 <title>개인연금 V2.0</title>
 <link rel="stylesheet" href="base.css">
-<link rel="stylesheet" href="components.css">
-<link rel="stylesheet" href="features.css">
+<link rel="stylesheet" href="app.css">
 <link rel="manifest" href="manifest.webmanifest">
 </head>
 <body>
 <div class="app">
 <header class="topbar">
-<div class="brand"><div class="title">개인연금</div><div class="subtitle" id="headerSub"></div></div>
-<button aria-label="설정" class="iconBtn" id="settingsBtn"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h6M14 7h6"></path><circle cx="12" cy="7" r="2"></circle><path d="M4 12h11M19 12h1"></path><circle cx="17" cy="12" r="2"></circle><path d="M4 17h2M10 17h10"></path><circle cx="8" cy="17" r="2"></circle></svg></button>
+  <div class="brand"><div class="title">개인연금</div><div class="subtitle" id="headerSub"></div></div>
+  <button aria-label="설정과 데이터 관리" class="iconBtn" id="settingsBtn"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h6M14 7h6"></path><circle cx="12" cy="7" r="2"></circle><path d="M4 12h11M19 12h1"></path><circle cx="17" cy="12" r="2"></circle><path d="M4 17h2M10 17h10"></path><circle cx="8" cy="17" r="2"></circle></svg></button>
 </header>
 <main>
-<section class="screen active" id="home"></section>
-<section class="screen" id="account"></section>
-<section class="screen" id="analysis"></section>
-<section class="screen" id="future"></section>
+  <section class="screen active" id="home" aria-label="홈"></section>
+  <section class="screen" id="account" aria-label="계좌"></section>
+  <section class="screen" id="analysis" aria-label="분석"></section>
+  <section class="screen" id="future" aria-label="미래"></section>
 </main>
 </div>
 <nav aria-label="주요 메뉴" class="nav">
@@ -37,20 +36,22 @@
 <button aria-label="빠른 입력" class="fab" id="fab">＋</button>
 <div class="overlay" id="quickSheet"><div class="sheet"><div class="sheetHead"><div class="sheetTitle">빠른 입력</div><button class="closeBtn" data-close="quickSheet">×</button></div><div class="quickGrid">
 <button class="quickItem" data-quick="contribution"><span class="quickIcon">₩</span><span><b>이번 달 납입</b><small>연금저축·IRP 기록</small></span><span>›</span></button>
-<button class="quickItem" data-quick="snapshot"><span class="quickIcon">↻</span><span><b>자산현황 갱신</b><small>잔고 사진 자동 인식 · 텍스트</small></span><span>›</span></button>
+<button class="quickItem" data-quick="snapshot"><span class="quickIcon">↻</span><span><b>자산현황 갱신</b><small>사진 자동 인식 또는 텍스트</small></span><span>›</span></button>
 <button class="quickItem" data-quick="detail"><span class="quickIcon">＋</span><span><b>배당·매도 기록</b><small>현금흐름과 확정손익</small></span><span>›</span></button>
 </div></div></div>
 <div class="overlay" id="settingsSheet"><div class="sheet"><div class="sheetHead"><div class="sheetTitle">설정</div><button class="closeBtn" data-close="settingsSheet">×</button></div><div id="settingsBody"></div></div></div>
 <div class="overlay" id="formSheet"><div class="sheet"><div class="sheetHead"><div class="sheetTitle" id="formTitle">입력</div><button class="closeBtn" data-close="formSheet">×</button></div><div id="formBody"></div></div></div>
-<div class="toast" id="toast"></div>
-<script defer src="core.js"></script>
-<script defer src="ui.js"></script>
-<script defer src="analysis.js"></script>
-<script defer src="ocr.js"></script>
-<script defer src="backup.js"></script>
-<script defer src="planning.js"></script>
+<div class="overlay" id="dataSheet"><div class="sheet"><div class="sheetHead"><div class="sheetTitle">데이터 보관</div><button class="closeBtn" data-close="dataSheet">×</button></div><div id="dataBody"></div></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script defer src="state.js"></script>
+<script defer src="engine.js"></script>
 <script defer src="ledger.js"></script>
 <script defer src="coach.js"></script>
+<script defer src="views.js"></script>
+<script defer src="forms.js"></script>
+<script defer src="ocr.js"></script>
+<script defer src="backup.js"></script>
 <script defer src="integrity.js"></script>
+<script defer src="app.js"></script>
 </body>
 </html>
