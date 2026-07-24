@@ -1,0 +1,11 @@
+{
+  "name": "개인연금",
+  "short_name": "개인연금",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#f4f7fb",
+  "lang": "ko-KR",
+  "description": "연금저축과 IRP 장기 관리 웹앱"
+}
