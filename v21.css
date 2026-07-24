@@ -1,4 +1,4 @@
-/* 개인연금 V2.4 · polished mobile finish */
+/* 개인연금 V2.5 · polished mobile finish */
 :root{
   --bg:#f5f7fb;
   --surface:#fff;
@@ -54,7 +54,7 @@ main{padding:8px 16px 34px}.stack{gap:14px}.card{border-color:rgba(226,232,240,.
 .v21Period,.v21Scenario{display:grid;gap:5px;background:#e9eef6;border-radius:17px;padding:4px;margin-bottom:14px}.v21Period{grid-template-columns:repeat(4,1fr)}.v21Scenario{grid-template-columns:repeat(3,1fr)}
 .v21Period button,.v21Scenario button{border:0;background:none;border-radius:13px;padding:11px 4px;font-weight:900;color:#7b8594;font-size:12px}.v21Period button.active,.v21Scenario button.active{background:#fff;color:var(--text);box-shadow:0 4px 12px rgba(30,49,78,.07)}
 .v21CashCard{padding-bottom:18px}.v21CashHead{align-items:center}.v21MetricToggle{display:flex;gap:3px;padding:3px;background:#eef2f7;border-radius:12px;flex:0 0 auto}.v21MetricToggle button{border:0;background:transparent;color:#7d8795;border-radius:9px;padding:7px 9px;font-size:10px;font-weight:900}.v21MetricToggle button.active{background:#fff;color:var(--blue);box-shadow:0 2px 8px rgba(34,51,79,.07)}
-.v21CashSummary{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px;margin:15px 0 6px}.v21CashSummary>div{background:#f6f8fc;border-radius:14px;padding:12px;display:grid;gap:5px;min-width:0}.v21CashSummary span{font-size:9px;color:var(--muted);font-weight:800}.v21CashSummary strong{font-size:17px;letter-spacing:-.5px}.v21CashSummary b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.v21CashChart{height:205px}.v21CashBase{stroke:#d9e0e9;stroke-width:1}.v21CashBar{fill:#78b7f0;opacity:.82;transition:fill .15s ease,opacity .15s ease}.v21CashBar.zero{fill:#dbe5f1;opacity:.8}.v21CashBar.selected{fill:#1673df;opacity:1}.v21CashPoint{margin-top:3px}
+.v21CashSummary{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px;margin:15px 0 6px}.v21CashSummary>div{background:#f6f8fc;border-radius:14px;padding:12px;display:grid;gap:5px;min-width:0}.v21CashSummary span{font-size:9px;color:var(--muted);font-weight:800}.v21CashSummary strong{font-size:17px;letter-spacing:-.5px}.v21CashSummary b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.v21CashChart{height:205px}.v21CashBase{stroke:#d9e0e9;stroke-width:1}.v21CashBar{fill:#78b7f0;opacity:.82;transition:fill .15s ease,opacity .15s ease}.v21CashBar.zero{display:none}.v21CashBar.selected{fill:#1673df;opacity:1}.v21CashPoint{margin-top:3px}
 
 /* Compare + AI */
 .v21CompareHero{padding:21px}.v21CompareEyebrow{font-weight:900;color:var(--muted);font-size:12px}.v21CompareMain{display:flex;justify-content:space-between;align-items:end;margin:10px 0 12px;gap:12px}.v21CompareMain strong{font-size:33px;letter-spacing:-1.2px}.v21CompareMain small{color:var(--muted);font-size:11px;text-align:right}.v21CompareCombined{padding:20px}.v21CompareBlock .sectionTitle{margin:0 0 13px;font-size:16px}.v21CompareDivider{height:1px;background:var(--line);margin:19px 0}.v21CompareRows{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.v21CompareRows div{display:grid;gap:5px;background:#f6f8fc;border-radius:13px;padding:11px}.v21CompareRows span{color:var(--muted);font-size:10px}.v21CompareRows b{font-size:12px}.v21Alloc{display:grid;gap:15px}.v21Alloc>div{display:grid;gap:6px}.v21Alloc>div>span{font-size:12px;font-weight:850}.v21Alloc>div>div{height:7px;background:#e8edf4;border-radius:99px;position:relative}.v21Alloc i{display:block;height:100%;background:linear-gradient(90deg,#1673df,#63a9ee);border-radius:99px}.v21Alloc em{position:absolute;top:-4px;width:2px;height:15px;background:#263244;border-radius:2px}.v21Alloc b{font-size:10px}
@@ -71,7 +71,7 @@ main{padding:8px 16px 34px}.stack{gap:14px}.card{border-color:rgba(226,232,240,.
 @media(max-width:350px){.v21HomeGrid{grid-template-columns:1fr}.v21CompareRows{grid-template-columns:1fr}.v21FutureKpi{grid-template-columns:1fr}.v21CashSummary{grid-template-columns:1fr 1fr}.v21CashSummary>div:first-child{grid-column:1/-1}}
 body[data-screen="home"] .fab{display:none!important}.v21Home{padding-bottom:24px}.screen{padding-bottom:25px}
 
-/* ===== V2.4.0 final quality pass ===== */
+/* ===== V2.5.0 final quality pass ===== */
 html{color-scheme:light}html[data-theme="dark"]{color-scheme:dark}
 .v21HeroFixed{padding:0;overflow:hidden}.v21HeroFixed .v21HeroMain{cursor:default}.v21AccountLink{border:0;border-radius:999px;background:var(--blueSoft);color:var(--blue);font-size:10px;font-weight:900;padding:7px 9px;margin-top:8px}.v21Exact{padding:10px 22px 14px;color:var(--muted);font-size:9.5px;border-top:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .v21Chart svg *{vector-effect:non-scaling-stroke}.v21Hit{touch-action:pan-y;cursor:ew-resize}.v21Chart{user-select:none;-webkit-user-select:none}.v21Select,.v21Dot{will-change:transform}.v21Line{transition:opacity .15s ease}.v21Axis{font-size:11px;fill:#737f90}.v21TableWrap{max-height:430px;overscroll-behavior:contain}.v21TableWrap thead th{position:sticky;top:0;background:var(--surface);z-index:2}
@@ -115,11 +115,11 @@ html[data-theme="dark"] .v21TableWrap thead th{background:var(--surface)}
 }
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation-duration:.001ms!important;transition-duration:.001ms!important}.v21Line,.v21CashBar{transition:none!important}}
 
-/* V2.4 chart clipping: keep axis labels inside the chart instead of bleeding into headings. */
+/* V2.5 chart clipping: keep axis labels inside the chart instead of bleeding into headings. */
 .v21Chart{margin-top:10px;overflow:hidden;border-radius:10px}
 .v21Chart svg{overflow:hidden}
 
-/* ===== V2.4 graph interaction refinement ===== */
+/* ===== V2.5 graph interaction refinement ===== */
 /* Keep the page layout stable during horizontal chart scrubbing. */
 .v21Hit{touch-action:pan-y;cursor:ew-resize}
 .v21BarHit{cursor:pointer;touch-action:pan-y}
@@ -129,3 +129,9 @@ html[data-theme="dark"] .v21TableWrap thead th{background:var(--surface)}
 html[data-theme="dark"] .v21CashBar.selected{stroke:#0d1421}
 /* Marker motion is driven by requestAnimationFrame; CSS transitions would add lag. */
 .v21Select,.v21Dot{transition:none!important}
+
+/* ===== V2.5 cash-flow and touch finalisation ===== */
+.v21CashBarHit{fill:transparent;cursor:pointer;touch-action:pan-y;pointer-events:all}
+.v21CashBar{pointer-events:none}
+/* Selection is color-only: bars never translate, resize or animate across slots. */
+.v21CashBar,.v21CashBar.selected{transform:none!important;animation:none!important}

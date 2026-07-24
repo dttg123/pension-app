@@ -1,11 +1,11 @@
-/* 개인연금 V2.4 분석·설정·장기입력 */
+/* 개인연금 V2.5 분석·설정·장기입력 */
 
 /* ===== js/60-final-completion.js ===== */
 (()=>{
 'use strict';
-const FINAL_VERSION='2.4.0';
+const FINAL_VERSION='2.5.0';
 const LABEL={all:'전체',pension:'연금저축',irp:'IRP'};
-document.title='개인연금 V2.4';
+document.title='개인연금 V2.5';
 state.meta=state.meta||{};state.meta.appVersion=FINAL_VERSION;
 state.settings=state.settings||{};
 if(!Number.isFinite(Number(state.settings.pensionTaxCreditLimit)))state.settings.pensionTaxCreditLimit=6000000;
@@ -67,7 +67,7 @@ renderHome=function(){
   const accountCards=Object.entries(state.accounts).map(([k,a])=>{const at=accountTotal(a),ap=at-a.principal,share=total?at/total*100:0;return `<button class="accountLink" data-account-link="${k}"><div><strong>${esc(a.name)}</strong><small class="tiny">전체의 ${share.toFixed(1)}%</small></div><span class="go">›</span><div class="accountStats"><div><span>원금</span><b>${man(a.principal)}</b></div><div><span>손익</span><b class="${ap>=0?'good':'bad'}">${ap>=0?'+':''}${man(ap)}</b></div><div><span>수익률</span><b class="${accountReturn(a)>=0?'good':'bad'}">${pct(accountReturn(a))}</b></div></div></button>`}).join('');
   const gapText=goal.gap>0?`목표 ${man(goal.goal)}까지 <b>${man(goal.gap)} 부족</b>`:`목표 ${man(goal.goal)} 달성 범위`;
   document.getElementById('home').innerHTML=`<div class="stack homeCompact">
-    <section class="card hero pressable" id="totalCard"><div class="heroTop"><div class="eyebrow">개인연금 총자산</div><div style="display:flex;align-items:center;gap:8px"><span class="v1Badge">V2.4</span><span class="chevron ${state.ui.homeExpanded?'open':''}" id="totalChevron">⌄</span></div></div><div class="money">${fmt(total)}</div><div class="${profit>=0?'good':'bad'}" style="font-weight:900">누적 운용증가 ${profit>=0?'+':''}${fmt(profit)} · ${pct(ret)}</div><div class="metricGrid"><div class="metric"><small>누적 순납입</small><b>${fmt(principal)}</b></div><div class="metric accent"><small>마지막 갱신</small><b>${esc(state.lastUpdated)}</b></div></div><div class="expand ${state.ui.homeExpanded?'open':''}" id="accountExpand"><div>${accountCards}</div></div></section>
+    <section class="card hero pressable" id="totalCard"><div class="heroTop"><div class="eyebrow">개인연금 총자산</div><div style="display:flex;align-items:center;gap:8px"><span class="v1Badge">V2.5</span><span class="chevron ${state.ui.homeExpanded?'open':''}" id="totalChevron">⌄</span></div></div><div class="money">${fmt(total)}</div><div class="${profit>=0?'good':'bad'}" style="font-weight:900">누적 운용증가 ${profit>=0?'+':''}${fmt(profit)} · ${pct(ret)}</div><div class="metricGrid"><div class="metric"><small>누적 순납입</small><b>${fmt(principal)}</b></div><div class="metric accent"><small>마지막 갱신</small><b>${esc(state.lastUpdated)}</b></div></div><div class="expand ${state.ui.homeExpanded?'open':''}" id="accountExpand"><div>${accountCards}</div></div></section>
     <section class="card homeContributionUnified"><button class="homeContributionMain" id="homeContribution"><div class="homeContributionHead"><div><div class="eyebrow">${CURRENT_YEAR}년 납입</div><strong>${fmt(annual.paid)}</strong></div><div class="plan">올해 계획<br><b>${fmt(annual.annualPlan)}</b></div></div><div class="progress"><i style="width:${annual.planPct}%"></i></div><div class="statusChips">${status.chips.length?status.chips.map(x=>`<span class="statusChip ${x.done?'done':'wait'}">${esc(x.name)} ${x.done?'완료':'대기'}</span>`).join(''):'<span class="statusChip">납입 계획 없음</span>'}</div><div class="contributionSummary"><div><small>이번 달</small><b>${fmt(status.total)} · ${status.label}</b></div><div><small>계획까지</small><b>${fmt(annual.planRemain)} 남음</b></div><div><small>세액공제 대상</small><b>${fmt(annual.taxEligible)} / ${fmt(annual.combinedTaxLimit)}</b></div></div></button><details class="contributionDetails"><summary>한도와 계좌별 납입 자세히</summary><div class="contributionDetailGrid"><div><small>연금저축 납입</small><b>${fmt(annual.pension)}</b></div><div><small>IRP 납입</small><b>${fmt(annual.irp)}</b></div><div><small>연금저축 공제한도</small><b>${fmt(annual.pensionEligible)} / ${fmt(annual.pensionTaxLimit)}</b></div><div><small>연금계좌 총 납입한도</small><b>${fmt(annual.paid)} / ${fmt(annual.annualLimit)}</b></div></div><div class="goalFine">총 납입한도까지 ${fmt(annual.limitRemain)} 추가 가능 · 세액공제 한도까지 ${fmt(annual.taxRemain)} 남음${annual.taxNeedIrp?' · 남은 공제 한도는 IRP 납입 필요':''}</div></details></section>
     <button class="homeAction goalClear" id="homeGoal"><div class="goalClearTop"><div><div class="goalClearLead">현재 계획대로라면 ${state.profile.retirementAge}세부터</div><div class="goalClearMoney"><em>월 ${man(goal.real)}</em> 예상</div></div><span class="goalProgressPill">목표의 ${Math.round(goal.p)}%</span></div><div class="goalGap">${gapText}</div><div class="goalFine">${state.profile.retirementAge}세 당시 세전 첫 월인출 예상 ${man(goal.nominal)} · 예상자산 연 4% 인출 기준 · 물가 ${state.settings.inflation}%로 현재가치 환산</div></button>
   </div>`;
@@ -120,7 +120,7 @@ renderAll(true);finalLastSignature=finalFullSignature(state);save();finalShowFab
 /* ===== js/70-audit-30y.js ===== */
 (()=>{
 'use strict';
-const AUDIT_BUILD='2.4.0';
+const AUDIT_BUILD='2.5.0';
 const AUDIT_LABEL={all:'전체',pension:'연금저축',irp:'IRP'};
 function auditRows(scope='all'){const source=scope==='all'?state.years:(state.accountYears?.[scope]||{});return Object.keys(source||{}).map(Number).sort((a,b)=>a-b).map(year=>({year,...source[year]}))}
 function auditScope(active,includeAll=true,attr='audit-scope'){const keys=includeAll?['all','pension','irp']:['pension','irp'];return `<div class="scopeSegment">${keys.map(k=>`<button data-${attr}="${k}" class="${active===k?'active':''}">${AUDIT_LABEL[k]}</button>`).join('')}</div>`}

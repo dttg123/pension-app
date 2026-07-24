@@ -1,4 +1,4 @@
-const CACHE='pension-v2-4-0-final';
+const CACHE='pension-v2-5-0-final';
 const ASSETS=[
   './','./index.html','./manifest.webmanifest','./icon.svg',
   './base.css','./components.css','./features.css','./v21.css',

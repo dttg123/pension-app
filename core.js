@@ -1,8 +1,8 @@
-/* 개인연금 V2.4 코어 및 UI */
+/* 개인연금 V2.5 코어 및 UI */
 
 /* ===== js/00-core.js ===== */
 'use strict';
-const APP_VERSION='2.4.0',SCHEMA_VERSION=6,STORAGE='pension-v1',LEGACY_KEYS=['pension-v8-r4b','pension-v8-r4','pension-v8-r2','pension-v8-final'];
+const APP_VERSION='2.5.0',SCHEMA_VERSION=6,STORAGE='pension-v1',LEGACY_KEYS=['pension-v8-r4b','pension-v8-r4','pension-v8-r2','pension-v8-final'];
 const DB_NAME='asset-os-local',DB_STORE='apps',DB_KEY='pension-v1',LEGACY_DB_KEY='pension-r4b';
 const RETURN_PATTERN=[6.8,-7.5,12.4,8.1,4.3,15.2,-11.8,9.7,6.1,13.4,2.5,-5.6,10.8,7.3,4.9,16.1,-14.2,8.7,5.5,11.6,3.2,-6.9,12.9,7.8,5.1,9.4,-10.5,13.7,6.6,8.2];
 const WITHDRAW_PATTERN=[4.5,-12,10,7,3,8,-5,6,4,9,2,-8,7,5,3,11,-10,6,4,8,2,-6,7,5,3,9,-7,6,4,5];

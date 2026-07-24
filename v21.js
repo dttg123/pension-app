@@ -1,11 +1,11 @@
-/* 개인연금 V2.4 · 그래프·리팩터링 안정화 레이어 */
+/* 개인연금 V2.5 · 현금흐름 정렬·그래프 터치 안정화 레이어 */
 (()=>{
 'use strict';
-const BUILD='2.4.0';
+const BUILD='2.5.0';
 const N=v=>Number.isFinite(Number(v))?Number(v):0;
 const CHART=window.PensionCharts;
 if(!CHART)throw new Error('차트 엔진을 불러오지 못했습니다.');
-const {compactMoney,axisScale,smoothPath,areaToFloor,areaBetween,interpolatePoint,interpolateX,samplePathY,bindSmoothScrubber,bindDiscreteBars}=CHART;
+const {compactMoney,axisScale,smoothPath,areaToFloor,areaBetween,interpolatePoint,interpolateX,samplePathY,bindSmoothScrubber,bindDiscreteBarTargets}=CHART;
 const THEME_VALUES=new Set(['auto','light','dark']);
 const themeMedia=window.matchMedia?.('(prefers-color-scheme: dark)');
 
@@ -61,8 +61,8 @@ closeSheet=function(){
 window.addEventListener('pagehide',()=>clearInterval(rolloverTimer),{once:true});
 
 syncAge();applyTheme();
-document.title='개인연금 V2.4';
-state.meta.appVersion=BUILD;state.meta.uxBuild='v2.4-refactor-final';
+document.title='개인연금 V2.5';
+state.meta.appVersion=BUILD;state.meta.uxBuild='v2.5-cashflow-touch-final';
 if(!['performance','cashflow','compare'].includes(state.ui.analysisPanel))state.ui.analysisPanel='performance';
 state.ui.v21CashPeriod=['12m','3y','5y','all'].includes(state.ui.v21CashPeriod)?state.ui.v21CashPeriod:'5y';
 state.ui.v21CashMetric=['dividend','realized'].includes(state.ui.v21CashMetric)?state.ui.v21CashMetric:'dividend';
@@ -207,20 +207,25 @@ function cashData(period,scope){
 function cashPeriodMeta(period){return period==='12m'?{average:'월평균',peak:'최대 월'}:period==='3y'?{average:'분기평균',peak:'최대 분기'}:{average:'연평균',peak:'최대 연도'}}
 function buildCashChart(data,id,metric){
   const W=640,H=220,p={l:58,r:16,t:18,b:34},values=data.map(d=>N(d[metric])),scale=axisScale(values,4,true),plotW=W-p.l-p.r,step=plotW/Math.max(1,data.length),bar=Math.max(7,Math.min(28,step*.48));
-  const x=i=>p.l+step*i+step/2,y=v=>p.t+(H-p.t-p.b)*(1-(N(v)-scale.min)/(scale.max-scale.min)),zero=y(0),pts=data.map((d,i)=>({x:x(i),value:y(d[metric]),raw:N(d[metric])}));
-  const bars=pts.map((q,i)=>{const h=Math.abs(zero-q.value),visible=Math.max(4,h),yy=q.raw>=0?zero-visible:zero;return `<rect x="${q.x-bar/2}" y="${yy}" width="${bar}" height="${visible}" rx="${Math.min(8,bar/2)}" class="v21CashBar ${q.raw===0?'zero':''}" data-bar-index="${i}"/>`}).join('');
+  const x=i=>p.l+step*(i+.5),y=v=>p.t+(H-p.t-p.b)*(1-(N(v)-scale.min)/(scale.max-scale.min)),zero=y(0),pts=data.map((d,i)=>({x:x(i),value:y(d[metric]),raw:N(d[metric])}));
+  const bars=pts.map((q,i)=>{
+    if(q.raw===0)return '';
+    const h=Math.abs(zero-q.value),visible=Math.max(1.5,h),yy=q.raw>0?zero-visible:zero,hitWidth=Math.max(bar+12,Math.min(44,step*.72));
+    return `<rect x="${q.x-bar/2}" y="${yy}" width="${bar}" height="${visible}" rx="${Math.min(8,bar/2)}" class="v21CashBar" data-bar-index="${i}"/><rect x="${q.x-hitWidth/2}" y="${p.t}" width="${hitWidth}" height="${H-p.t-p.b}" class="v21CashBarHit" data-bar-hit-index="${i}" aria-label="${esc(data[i].full)} ${man(q.raw)}"/>`;
+  }).join('');
   const labelStep=data.length>=24?5:data.length>=12?3:1,labels=data.map((d,i)=>(i%labelStep===0||i===data.length-1)?`<text x="${x(i)}" y="${H-8}" text-anchor="middle" class="v21Axis">${d.label}</text>`:'').join('');
   const guides=scale.ticks.map(v=>{const yy=y(v);return `<line x1="${p.l}" x2="${W-p.r}" y1="${yy}" y2="${yy}" class="v21Grid"/><text x="${p.l-7}" y="${yy+4}" text-anchor="end" class="v21Axis">${compactMoney(v)}</text>`}).join('');
-  return {pts,svg:`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${guides}<line x1="${p.l}" x2="${W-p.r}" y1="${zero}" y2="${zero}" class="v21CashBase"/>${bars}${labels}<rect id="${id}Hit" class="v21Hit v21BarHit" x="${p.l}" y="${p.t}" width="${W-p.l-p.r}" height="${H-p.t-p.b}"/></svg>`};
+  return {pts,svg:`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${guides}<line x1="${p.l}" x2="${W-p.r}" y1="${zero}" y2="${zero}" class="v21CashBase"/>${bars}${labels}</svg>`};
 }
 function renderCashflow21(el){
   const scope=['all','pension','irp'].includes(state.ui.analysisScope)?state.ui.analysisScope:'all',period=state.ui.v21CashPeriod,metric=state.ui.v21CashMetric,data=cashData(period,scope),chart=buildCashChart(data,'v21Cash',metric),meta=cashPeriodMeta(period);
-  let idx=clamp(Number.isFinite(Number(state.ui.v21CashPoint))?Number(state.ui.v21CashPoint):data.length-1,0,data.length-1),lastCard=-1;
-  const values=data.map(d=>N(d[metric])),total=values.reduce((a,b)=>a+b,0),average=data.length?total/data.length:0,peak=values.length?values.reduce((best,v)=>Math.abs(v)>Math.abs(best)?v:best,0):0,metricName=metric==='dividend'?'배당·분배금':'매도손익';
-  el.innerHTML=`${scopeSelect(scope)}<div class="v21Period"><button data-period="12m" class="${period==='12m'?'active':''}">12개월</button><button data-period="3y" class="${period==='3y'?'active':''}">3년</button><button data-period="5y" class="${period==='5y'?'active':''}">5년</button><button data-period="all" class="${period==='all'?'active':''}">전체</button></div><section class="card v21ChartCard v21CashCard"><div class="v21ChartHead v21CashHead"><div><h2>현금흐름</h2><p>기간과 항목을 바꿔 수익 흐름을 확인하세요.</p></div><div class="v21MetricToggle"><button data-cash-metric="dividend" class="${metric==='dividend'?'active':''}">배당·분배금</button><button data-cash-metric="realized" class="${metric==='realized'?'active':''}">매도손익</button></div></div><div class="v21CashSummary"><div><span>${metricName} 합계</span><strong class="${metric==='realized'&&total<0?'bad':''}">${total>=0?'+':''}${man(total)}</strong></div><div><span>${meta.average}</span><b>${average>=0?'':'-'}${man(Math.abs(average))}</b></div><div><span>${meta.peak}</span><b class="${metric==='realized'&&peak<0?'bad':''}">${peak>=0?'+':''}${man(peak)}</b></div></div><div class="v21Chart v21CashChart">${chart.svg}</div><div class="v21PointCard v21CashPoint" id="v21CashPoint"></div><div class="v21CashNote">배당·분배금은 보유 중 받은 소득, 매도손익은 매도 시 확정된 손익입니다. 재투자는 별도 매수로 기록합니다.</div></section>`;
-  const renderCard=i=>{if(i===lastCard)return;lastCard=i;idx=i;state.ui.v21CashPoint=i;const d=data[i],value=N(d[metric]);document.querySelectorAll('[data-bar-index]').forEach((bar,n)=>bar.classList.toggle('selected',n===i));document.getElementById('v21CashPoint').innerHTML=`<div><span>${d.full}</span><strong class="${metric==='realized'&&value<0?'bad':''}">${value>=0?'+':''}${man(value)}</strong></div><div class="v21PointGrid"><span>배당·분배금 <b>${man(d.dividend)}</b></span><span>매도손익 <b class="${d.realized>=0?'good':'bad'}">${d.realized>=0?'+':''}${man(d.realized)}</b></span></div>`};
+  const values=data.map(d=>N(d[metric])),nonZero=values.map((v,i)=>v!==0?i:-1).filter(i=>i>=0),requested=Number(state.ui.v21CashPoint);
+  let idx=Number.isFinite(requested)&&requested>=0&&requested<data.length&&values[requested]!==0?Math.round(requested):(nonZero.at(-1)??Math.max(0,data.length-1)),lastCard=-1;
+  const total=values.reduce((a,b)=>a+b,0),average=data.length?total/data.length:0,peak=values.length?values.reduce((best,v)=>Math.abs(v)>Math.abs(best)?v:best,0):0,metricName=metric==='dividend'?'배당·분배금':'매도손익';
+  el.innerHTML=`${scopeSelect(scope)}<div class="v21Period"><button data-period="12m" class="${period==='12m'?'active':''}">1년</button><button data-period="3y" class="${period==='3y'?'active':''}">3년</button><button data-period="5y" class="${period==='5y'?'active':''}">5년</button><button data-period="all" class="${period==='all'?'active':''}">전체</button></div><section class="card v21ChartCard v21CashCard"><div class="v21ChartHead v21CashHead"><div><h2>현금흐름</h2><p>기간과 항목을 바꿔 수익 흐름을 확인하세요.</p></div><div class="v21MetricToggle"><button data-cash-metric="dividend" class="${metric==='dividend'?'active':''}">배당·분배금</button><button data-cash-metric="realized" class="${metric==='realized'?'active':''}">매도손익</button></div></div><div class="v21CashSummary"><div><span>${metricName} 합계</span><strong class="${metric==='realized'&&total<0?'bad':''}">${total>=0?'+':''}${man(total)}</strong></div><div><span>${meta.average}</span><b>${average>=0?'':'-'}${man(Math.abs(average))}</b></div><div><span>${meta.peak}</span><b class="${metric==='realized'&&peak<0?'bad':''}">${peak>=0?'+':''}${man(peak)}</b></div></div><div class="v21Chart v21CashChart">${chart.svg}</div><div class="v21PointCard v21CashPoint" id="v21CashPoint"></div><div class="v21CashNote">배당·분배금은 보유 중 받은 소득, 매도손익은 매도 시 확정된 손익입니다. 재투자는 별도 매수로 기록합니다.</div></section>`;
+  const renderCard=i=>{if(i===lastCard)return;lastCard=i;idx=i;state.ui.v21CashPoint=i;const d=data[i],value=N(d[metric]);document.querySelectorAll('[data-bar-index]').forEach(bar=>bar.classList.toggle('selected',Number(bar.dataset.barIndex)===i));document.getElementById('v21CashPoint').innerHTML=`<div><span>${d.full}</span><strong class="${metric==='realized'&&value<0?'bad':''}">${value>=0?'+':''}${man(value)}</strong></div><div class="v21PointGrid"><span>배당·분배금 <b>${man(d.dividend)}</b></span><span>매도손익 <b class="${d.realized>=0?'good':'bad'}">${d.realized>=0?'+':''}${man(d.realized)}</b></span></div>`};
   renderCard(idx);
-  bindDiscreteBars('v21CashHit',data.length,{initialIndex:idx,select:renderCard,commit:i=>{state.ui.v21CashPoint=i;save()}});bindScope(renderCashflow21);
+  bindDiscreteBarTargets('[data-bar-hit-index]',{initialIndex:idx,select:renderCard,commit:i=>{state.ui.v21CashPoint=i;save()}});bindScope(renderCashflow21);
   document.querySelectorAll('[data-period]').forEach(b=>b.onclick=()=>{state.ui.v21CashPeriod=b.dataset.period;state.ui.v21CashPoint=999;renderCashflow21(el);save()});
   document.querySelectorAll('[data-cash-metric]').forEach(b=>b.onclick=()=>{state.ui.v21CashMetric=b.dataset.cashMetric;state.ui.v21CashPoint=999;renderCashflow21(el);save()});
 }
@@ -306,8 +311,8 @@ renderSettings=function(){
 /* ---------- final render wrapper ---------- */
 const prevAll=renderAll;
 renderAll=function(keep=false){
-  syncAge();state.meta.appVersion=BUILD;applyTheme();document.title='개인연금 V2.4';prevAll(keep);syncAge();state.meta.appVersion=BUILD;renderV21Home();if(state.ui.screen==='analysis')renderAnalysis();if(state.ui.screen==='future')renderFuture();const sub=document.getElementById('headerSub');if(sub)sub.textContent=`${currentAge()}세 · ${state.profile.retirementAge}세 연금 개시 계획`;
+  syncAge();state.meta.appVersion=BUILD;applyTheme();document.title='개인연금 V2.5';prevAll(keep);syncAge();state.meta.appVersion=BUILD;renderV21Home();if(state.ui.screen==='analysis')renderAnalysis();if(state.ui.screen==='future')renderFuture();const sub=document.getElementById('headerSub');if(sub)sub.textContent=`${currentAge()}세 · ${state.profile.retirementAge}세 연금 개시 계획`;
 };
 window.PensionV21={build:BUILD,aiDecision,expectedHistory,scenarioProjection,upsertMonthlySummary,applyTheme,compactMoney,axisScale};
-document.title='개인연금 V2.4';renderAll(true);save();
+document.title='개인연금 V2.5';renderAll(true);save();
 })();

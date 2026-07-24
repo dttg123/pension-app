@@ -1,4 +1,4 @@
-/* 개인연금 V2.4 차트 엔진 · 스플라인/스크러버/막대 선택 공통 모듈 */
+/* 개인연금 V2.5 차트 엔진 · 스플라인/스크러버/막대 선택 공통 모듈 */
 (()=>{
 'use strict';
 const N=v=>Number.isFinite(Number(v))?Number(v):0;
@@ -85,59 +85,83 @@ function samplePathY(pathId,x,fallback=0){
   const path=document.getElementById(pathId),sample=samplerFor(path);return sample?sample(x):N(fallback);
 }
 
-/* Frame-synchronised scrubber. During drag it follows the latest pointer position once per frame; on release it snaps softly to the nearest data point. */
+/* Frame-synchronised scrubber.
+   Samsung/Android browsers can deliver touch samples unevenly. The marker therefore follows
+   a time-based low-pass target instead of jumping directly between sparse pointer events. */
 function bindSmoothScrubber(hitId,count,{position,index,commit,initialRaw}={}){
   const hit=document.getElementById(hitId);if(!hit||count<1)return ()=>{};
-  const max=Math.max(0,count-1);let current=clampValue(Number.isFinite(Number(initialRaw))?N(initialRaw):max,0,max),target=current;
-  let pointerId=null,startX=0,startY=0,horizontal=false,raf=0,lastIndex=-1,destroyed=false,snapToken=0;
+  const max=Math.max(0,count-1);
+  let display=clampValue(Number.isFinite(Number(initialRaw))?N(initialRaw):max,0,max),target=display;
+  let pointerId=null,startX=0,startY=0,horizontal=false,active=false,raf=0,lastIndex=-1,lastNow=0,destroyed=false,commitIndex=null;
   const rawFromClientX=x=>{const r=hit.getBoundingClientRect(),pct=clampValue((x-r.left)/Math.max(1,r.width),0,1);return pct*max};
   const latestX=e=>{const list=typeof e.getCoalescedEvents==='function'?e.getCoalescedEvents():null;return list?.length?list.at(-1).clientX:e.clientX};
-  const draw=raw=>{current=clampValue(raw,0,max);position?.(current);const i=Math.round(current);if(i!==lastIndex){lastIndex=i;index?.(i)}};
-  const flush=()=>{raf=0;if(destroyed)return;draw(target)};
-  const schedule=raw=>{target=clampValue(raw,0,max);if(!raf)raf=requestAnimationFrame(flush)};
-  const stop=()=>{snapToken++;if(raf)cancelAnimationFrame(raf);raf=0};
-  const ease=t=>1-Math.pow(1-t,3);
-  const snapTo=raw=>{
-    stop();const from=current,to=Math.round(clampValue(raw,0,max)),token=++snapToken,start=performance.now(),duration=130;
-    const step=now=>{if(destroyed||token!==snapToken)return;const t=clampValue((now-start)/duration,0,1);draw(lerp(from,to,ease(t)));if(t<1){raf=requestAnimationFrame(step)}else{raf=0;draw(to);commit?.(to)}};
-    raf=requestAnimationFrame(step);
+  const draw=raw=>{display=clampValue(raw,0,max);position?.(display);const i=Math.round(display);if(i!==lastIndex){lastIndex=i;index?.(i)}};
+  const ensureFrame=()=>{if(!raf)raf=requestAnimationFrame(frame)};
+  const frame=now=>{
+    raf=0;if(destroyed)return;
+    const dt=lastNow?Math.min(34,Math.max(8,now-lastNow)):16;lastNow=now;
+    const distance=target-display;
+    /* 38 ms response while dragging, 58 ms while softly settling. */
+    const tau=active?26:54,alpha=1-Math.exp(-dt/tau);
+    display=Math.abs(distance)<.0008?target:display+distance*alpha;
+    draw(display);
+    if(Math.abs(target-display)>.0008||active){ensureFrame();return}
+    draw(target);
+    if(commitIndex!==null){const value=commitIndex;commitIndex=null;commit?.(value)}
   };
-  draw(current);
+  const setTarget=raw=>{target=clampValue(raw,0,max);ensureFrame()};
+  const cancelFrame=()=>{if(raf)cancelAnimationFrame(raf);raf=0;lastNow=0};
+  const releaseCapture=e=>{try{hit.releasePointerCapture(e.pointerId)}catch(_){}};
+  const move=e=>{
+    if(pointerId!==e.pointerId)return;
+    const x=latestX(e),dx=Math.abs(x-startX),dy=Math.abs(e.clientY-startY);
+    if(!horizontal&&Math.max(dx,dy)>5){
+      if(dy>dx*1.08){pointerId=null;active=false;releaseCapture(e);return}
+      horizontal=true;active=true;document.body.classList.add('charting');
+      /* Start exactly under the finger. Do not travel across the whole chart from the previous selection. */
+      const raw=rawFromClientX(x);display=target=raw;lastNow=0;draw(raw);
+    }
+    if(horizontal){if(e.cancelable)e.preventDefault();setTarget(rawFromClientX(x))}
+  };
+  draw(display);
   hit.onpointerdown=e=>{
-    stop();pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;horizontal=false;
+    cancelFrame();pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;horizontal=false;active=false;commitIndex=null;
+    const raw=rawFromClientX(e.clientX);display=target=raw;draw(raw);
     try{hit.setPointerCapture(e.pointerId)}catch(_){}
   };
-  hit.onpointermove=e=>{
-    if(pointerId!==e.pointerId)return;const x=latestX(e),dx=Math.abs(x-startX),dy=Math.abs(e.clientY-startY);
-    if(!horizontal&&Math.max(dx,dy)>5){
-      if(dy>dx*1.08){pointerId=null;try{hit.releasePointerCapture(e.pointerId)}catch(_){}return}
-      horizontal=true;document.body.classList.add('charting');
-    }
-    if(horizontal){if(e.cancelable)e.preventDefault();schedule(rawFromClientX(x))}
+  hit.onpointermove=move;
+  /* Higher-frequency samples when the browser exposes them. */
+  hit.onpointerrawupdate=e=>{if(horizontal)move(e)};
+  hit.onpointerup=e=>{
+    if(pointerId!==e.pointerId)return;
+    const raw=rawFromClientX(latestX(e));pointerId=null;active=false;horizontal=false;document.body.classList.remove('charting');
+    target=Math.round(raw);commitIndex=target;ensureFrame();releaseCapture(e)
   };
-  const finish=e=>{
-    if(pointerId!==e.pointerId)return;const raw=rawFromClientX(latestX(e));pointerId=null;horizontal=false;document.body.classList.remove('charting');
-    if(raf){cancelAnimationFrame(raf);raf=0;draw(target)}
-    snapTo(raw);try{hit.releasePointerCapture(e.pointerId)}catch(_){}
+  hit.onpointercancel=e=>{
+    if(pointerId!==e.pointerId)return;pointerId=null;active=false;horizontal=false;commitIndex=null;target=display;document.body.classList.remove('charting');releaseCapture(e)
   };
-  hit.onpointerup=finish;
-  hit.onpointercancel=e=>{if(pointerId===e.pointerId){pointerId=null;horizontal=false;document.body.classList.remove('charting');stop()}};
-  return ()=>{destroyed=true;stop();document.body.classList.remove('charting');hit.onpointerdown=hit.onpointermove=hit.onpointerup=hit.onpointercancel=null};
+  return ()=>{destroyed=true;cancelFrame();document.body.classList.remove('charting');hit.onpointerdown=hit.onpointermove=hit.onpointerrawupdate=hit.onpointerup=hit.onpointercancel=null};
 }
 
-/* Bar charts are tap-select only. A drag is reserved for page scrolling and never sweeps the selection across bars. */
-function bindDiscreteBars(hitId,count,{select,commit,initialIndex}={}){
-  const hit=document.getElementById(hitId);if(!hit||count<1)return ()=>{};
-  let pointerId=null,startX=0,startY=0,moved=false,current=clampValue(Number.isFinite(Number(initialIndex))?Math.round(N(initialIndex)):count-1,0,count-1);
-  const indexFromX=x=>{const r=hit.getBoundingClientRect(),pct=clampValue((x-r.left)/Math.max(1,r.width),0,1);return clampValue(Math.floor(pct*count),0,count-1)};
-  const set=i=>{const next=clampValue(Math.round(i),0,count-1);if(next===current)return;current=next;select?.(next)};
+/* Cash-flow bars are independent tap targets. Zero-value slots have no target and cannot be
+   selected accidentally; dragging remains page scrolling and never sweeps across bars. */
+function bindDiscreteBarTargets(selector,{select,commit,initialIndex}={}){
+  const targets=[...document.querySelectorAll(selector)];if(!targets.length)return ()=>{};
+  let current=Number.isFinite(Number(initialIndex))?Math.round(N(initialIndex)):-1;
   select?.(current);
-  hit.onpointerdown=e=>{pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;moved=false;try{hit.setPointerCapture(e.pointerId)}catch(_){} };
-  hit.onpointermove=e=>{if(pointerId!==e.pointerId)return;if(Math.hypot(e.clientX-startX,e.clientY-startY)>8)moved=true};
-  hit.onpointerup=e=>{if(pointerId!==e.pointerId)return;if(!moved){set(indexFromX(e.clientX));commit?.(current)}pointerId=null;try{hit.releasePointerCapture(e.pointerId)}catch(_){} };
-  hit.onpointercancel=e=>{if(pointerId===e.pointerId)pointerId=null};
-  return ()=>{hit.onpointerdown=hit.onpointermove=hit.onpointerup=hit.onpointercancel=null};
+  const cleanups=[];
+  for(const target of targets){
+    let pointerId=null,startX=0,startY=0,moved=false;
+    const index=Number(target.dataset.barHitIndex);
+    const down=e=>{pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;moved=false;try{target.setPointerCapture(e.pointerId)}catch(_){}};
+    const move=e=>{if(pointerId===e.pointerId&&Math.hypot(e.clientX-startX,e.clientY-startY)>8)moved=true};
+    const up=e=>{if(pointerId!==e.pointerId)return;if(!moved&&Number.isFinite(index)){current=index;select?.(index);commit?.(index)}pointerId=null;try{target.releasePointerCapture(e.pointerId)}catch(_){}};
+    const cancel=e=>{if(pointerId===e.pointerId)pointerId=null};
+    target.addEventListener('pointerdown',down);target.addEventListener('pointermove',move);target.addEventListener('pointerup',up);target.addEventListener('pointercancel',cancel);
+    cleanups.push(()=>{target.removeEventListener('pointerdown',down);target.removeEventListener('pointermove',move);target.removeEventListener('pointerup',up);target.removeEventListener('pointercancel',cancel)})
+  }
+  return ()=>cleanups.forEach(fn=>fn());
 }
 
-window.PensionCharts={compactMoney,axisScale,linePath,smoothPath,areaToFloor,areaBetween,interpolatePoint,interpolateX,samplePathY,bindSmoothScrubber,bindDiscreteBars,lerp};
+window.PensionCharts={compactMoney,axisScale,linePath,smoothPath,areaToFloor,areaBetween,interpolatePoint,interpolateX,samplePathY,bindSmoothScrubber,bindDiscreteBarTargets,lerp};
 })();
