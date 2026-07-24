@@ -1,6 +1,6 @@
-const CACHE='pension-v2-final-20260724-schema6-backup2-final1';
+const CACHE='pension-v2-final-20260724-rc4-ux';
 const ASSETS=[
-  './','./index.html','./manifest.webmanifest',
+  './','./index.html','./manifest.webmanifest','./icon.svg',
   './base.css','./components.css','./features.css',
   './core.js','./ui.js','./analysis.js','./ocr.js','./backup.js',
   './planning.js','./ledger.js','./coach.js','./integrity.js'
