@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<title>개인연금 V2.3</title>
+<title>개인연금 V2.4</title>
 <script>
 (()=>{try{const raw=localStorage.getItem('pension-v1'),mode=raw?JSON.parse(raw)?.settings?.theme:'auto',dark=mode==='dark'||(mode!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=dark?'dark':'light';document.documentElement.dataset.themeMode=['auto','light','dark'].includes(mode)?mode:'auto'}catch(_){document.documentElement.dataset.theme='light';document.documentElement.dataset.themeMode='auto'}})();
 </script>
@@ -56,6 +56,7 @@
 <script defer src="ledger.js"></script>
 <script defer src="coach.js"></script>
 <script defer src="integrity.js"></script>
+<script defer src="charts.js"></script>
 <script defer src="v21.js"></script>
 </body>
 </html>

@@ -1,9 +1,9 @@
-/* 개인연금 V2.3 연금 코치·OCR */
+/* 개인연금 V2.4 연금 코치·OCR */
 
 /* ===== js/90-coach-ocr.js ===== */
 (()=>{
 'use strict';
-const V12_VERSION='2.3.0';
+const V12_VERSION='2.4.0';
 const V12_ENGINE='coach-rules-1.0';
 const V12_KEYS=['pension','irp'];
 const V12_LABEL={pension:'연금저축',irp:'IRP'};
@@ -65,7 +65,7 @@ function v12CoachCardHtml(c){const tag=c.primary.kind==='good'?'그대로 유지
 const v12PrevSave=save;
 save=function(){v12StripTransient(state);state.meta=state.meta||{};state.meta.appVersion=V12_VERSION;state.meta.coachEngine=V12_ENGINE;state.meta.lastDataAudit=v12Iso();const audit=v12Audit(state);state.meta.lastDataAuditResult={ok:audit.ok,errorCount:audit.errors.length,warningCount:audit.warnings.length};v12PrevSave()};
 const v12PrevHome=renderHome;
-renderHome=function(){v12PrevHome();const stack=document.querySelector('#home .stack');if(!stack)return;const old=document.getElementById('homeCoach');old?.remove();const coach=v12Coach(),wrap=document.createElement('div');wrap.innerHTML=v12CoachCardHtml(coach);const contribution=document.getElementById('homeContribution');if(contribution)contribution.after(wrap.firstElementChild);else stack.appendChild(wrap.firstElementChild);document.getElementById('homeCoach').onclick=()=>{state.ui.analysisPanel='smart';navigate('analysis');renderAnalysis();save()};document.querySelectorAll('#home .v0Badge,#home .v1Badge').forEach(b=>{b.textContent='V2.3';b.classList.add('v12Version')})};
+renderHome=function(){v12PrevHome();const stack=document.querySelector('#home .stack');if(!stack)return;const old=document.getElementById('homeCoach');old?.remove();const coach=v12Coach(),wrap=document.createElement('div');wrap.innerHTML=v12CoachCardHtml(coach);const contribution=document.getElementById('homeContribution');if(contribution)contribution.after(wrap.firstElementChild);else stack.appendChild(wrap.firstElementChild);document.getElementById('homeCoach').onclick=()=>{state.ui.analysisPanel='smart';navigate('analysis');renderAnalysis();save()};document.querySelectorAll('#home .v0Badge,#home .v1Badge').forEach(b=>{b.textContent='V2.4';b.classList.add('v12Version')})};
 const v12PrevAnalysis=renderAnalysis;
 renderAnalysis=function(){v12PrevAnalysis();const btn=document.querySelector('#analysis [data-analysis="smart"]');if(btn)btn.textContent='코치'};
 const v12PrevAnalysisContent=renderAnalysisContent;
@@ -78,6 +78,6 @@ renderSettings=function(){v12PrevSettings();const n=document.querySelector('#set
 function v12BuildScenario({years=30,recordsPerMonth=2,crash=false,pauseYears=0,huge=false}={}){const s=clone(state),start=CURRENT_YEAR-years+1;s.years={};s.accountYears={pension:{},irp:{}};s.ledger=[];let end=huge?9e12:1e7,cum=0;for(let y=start;y<=CURRENT_YEAR;y++){const paused=y<start+pauseYears,cont=paused?0:9000000,rate=crash&&[7,8,9].includes(y-start)?[-38,-24,11][y-start-7]:((y*17)%29-8),begin=end;cum+=cont;end=Math.max(0,(begin+cont)*(1+rate/100));s.years[y]={start:begin,end,cumulative:cum,contribution:cont,operating:end-begin-cont,realized:0,return:rate,dividend:Math.max(0,Math.round(end*.008)),reinvested:0,monthly:Array(12).fill(0),accountContribution:{pension:Math.round(cont*2/3),irp:Math.round(cont/3)}};for(const key of V12_KEYS){const ratio=key==='pension'?2/3:1/3;s.accountYears[key][y]={start:begin*ratio,end:end*ratio,cumulative:cum*ratio,contribution:cont*ratio,operating:(end-begin-cont)*ratio,realized:0,return:rate,dividend:s.years[y].dividend*ratio,reinvested:0,monthly:Array(12).fill(0)}}for(let m=1;m<=12;m++)for(let r=0;r<recordsPerMonth;r++)s.ledger.push({id:`stress-${y}-${m}-${r}`,type:r===0&&!paused?'contribution':'dividend-adjustment',date:`${y}-${String(m).padStart(2,'0')}-01T00:00:00.000Z`,monthKey:`${y}-${String(m).padStart(2,'0')}`,year:y,accountKey:r%2?'irp':'pension',accountId:r%2?'account-irp':'account-pension',amount:r===0&&!paused?750000:1000,source:'stress',synthetic:r!==0})}return s}
 function v12Stress(){const cases=[['30년 정상',v12BuildScenario()],['30년 급락',v12BuildScenario({crash:true})],['5년 납입중단',v12BuildScenario({pauseYears:5})],['원장 1만건+',v12BuildScenario({recordsPerMonth:30})],['초고액',v12BuildScenario({huge:true})],['자산 0원',(()=>{const x=v12BuildScenario();for(const k of V12_KEYS){x.accounts[k].principal=0;x.accounts[k].cash=0;x.accounts[k].holdings=[]}return x})()]],results=[];for(const [name,s] of cases){v12StripTransient(s);const a=v12Audit(s);results.push({name,ok:a.ok,errors:a.errors,warnings:a.warnings,counts:a.counts})}const corrupt=v12BuildScenario();corrupt.ledger.push({...corrupt.ledger[0]});const rejected=!v12Audit(corrupt).ok;results.push({name:'중복 원장 거부',ok:rejected,errors:rejected?[]:['중복 원장을 거부하지 못함']});return {version:V12_VERSION,runAt:v12Iso(),ok:results.every(r=>r.ok),results}}
 window.PensionV12={version:V12_VERSION,engine:V12_ENGINE,coach:v12Coach,audit:v12Audit,privacyAudit:v12PrivacyAudit,stripTransient:v12StripTransient,stress:v12Stress,buildScenario:v12BuildScenario};
-state.meta=state.meta||{};state.meta.appVersion=V12_VERSION;state.meta.coachEngine=V12_ENGINE;v12StripTransient(state);document.title='개인연금 V2.3';renderAll(true);save();
+state.meta=state.meta||{};state.meta.appVersion=V12_VERSION;state.meta.coachEngine=V12_ENGINE;v12StripTransient(state);document.title='개인연금 V2.4';renderAll(true);save();
 })();
 

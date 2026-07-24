@@ -1,4 +1,4 @@
-/* 개인연금 V2.3 · polished mobile finish */
+/* 개인연금 V2.4 · polished mobile finish */
 :root{
   --bg:#f5f7fb;
   --surface:#fff;
@@ -71,7 +71,7 @@ main{padding:8px 16px 34px}.stack{gap:14px}.card{border-color:rgba(226,232,240,.
 @media(max-width:350px){.v21HomeGrid{grid-template-columns:1fr}.v21CompareRows{grid-template-columns:1fr}.v21FutureKpi{grid-template-columns:1fr}.v21CashSummary{grid-template-columns:1fr 1fr}.v21CashSummary>div:first-child{grid-column:1/-1}}
 body[data-screen="home"] .fab{display:none!important}.v21Home{padding-bottom:24px}.screen{padding-bottom:25px}
 
-/* ===== V2.3.0 final quality pass ===== */
+/* ===== V2.4.0 final quality pass ===== */
 html{color-scheme:light}html[data-theme="dark"]{color-scheme:dark}
 .v21HeroFixed{padding:0;overflow:hidden}.v21HeroFixed .v21HeroMain{cursor:default}.v21AccountLink{border:0;border-radius:999px;background:var(--blueSoft);color:var(--blue);font-size:10px;font-weight:900;padding:7px 9px;margin-top:8px}.v21Exact{padding:10px 22px 14px;color:var(--muted);font-size:9.5px;border-top:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .v21Chart svg *{vector-effect:non-scaling-stroke}.v21Hit{touch-action:pan-y;cursor:ew-resize}.v21Chart{user-select:none;-webkit-user-select:none}.v21Select,.v21Dot{will-change:transform}.v21Line{transition:opacity .15s ease}.v21Axis{font-size:11px;fill:#737f90}.v21TableWrap{max-height:430px;overscroll-behavior:contain}.v21TableWrap thead th{position:sticky;top:0;background:var(--surface);z-index:2}
@@ -80,7 +80,7 @@ html{color-scheme:light}html[data-theme="dark"]{color-scheme:dark}
 .v21AllocTitle{display:flex!important;align-items:center;justify-content:space-between;gap:12px;height:auto!important;background:none!important}.v21AllocTitle b{font-size:10px;color:var(--sub);font-weight:800}.v21Alloc>div>small{font-size:10px;font-weight:800}.v21AiPanel.compact{padding:18px}.v21AiCompactResult{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}.v21AiCompactResult h2{font-size:18px;margin:10px 0 4px}.v21AiCompactResult p{font-size:11px}.v21AiCompactResult>b{color:var(--blue);font-size:11px;white-space:nowrap}.v21AiCriteria{display:flex;flex-wrap:wrap;gap:6px;margin:13px 0}.v21AiCriteria span{padding:6px 8px;border-radius:999px;background:var(--surface2);color:var(--sub);font-size:9px;font-weight:800}.v21AiNote.standalone{margin:0 3px 4px;text-align:center}.v21CompareHero .v21ChartHead p{max-width:520px}
 .v21FutureSummary>small{font-size:9.5px}.v21FutureGraph{height:235px}.v21Milestone{fill:var(--surface);stroke:var(--blue)}
 .v21ThemeSection{margin-bottom:4px}.v21ThemePicker{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:5px;border-radius:17px;background:var(--surface2)}.v21ThemePicker button{border:0;background:transparent;color:var(--sub);border-radius:13px;padding:10px 5px;font-weight:900;font-size:12px;display:grid;gap:3px}.v21ThemePicker button small{font-size:8.5px;color:var(--muted);font-weight:700}.v21ThemePicker button.active{background:var(--surface);color:var(--text);box-shadow:var(--shadowSm)}.v21ThemePicker button.active small{color:var(--blue)}
-body.charting{overflow:hidden;touch-action:none}
+body.charting{overflow:auto;touch-action:auto;overscroll-behavior-y:contain}
 
 /* Dark theme — variables first, then hard-coded legacy surfaces */
 html[data-theme="dark"]{
@@ -115,6 +115,17 @@ html[data-theme="dark"] .v21TableWrap thead th{background:var(--surface)}
 }
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation-duration:.001ms!important;transition-duration:.001ms!important}.v21Line,.v21CashBar{transition:none!important}}
 
-/* V2.3 chart clipping: keep axis labels inside the chart instead of bleeding into headings. */
+/* V2.4 chart clipping: keep axis labels inside the chart instead of bleeding into headings. */
 .v21Chart{margin-top:10px;overflow:hidden;border-radius:10px}
 .v21Chart svg{overflow:hidden}
+
+/* ===== V2.4 graph interaction refinement ===== */
+/* Keep the page layout stable during horizontal chart scrubbing. */
+.v21Hit{touch-action:pan-y;cursor:ew-resize}
+.v21BarHit{cursor:pointer;touch-action:pan-y}
+.v21Select,.v21Dot{pointer-events:none}
+.v21CashBar{transition:fill 110ms ease,opacity 110ms ease,stroke 110ms ease;stroke:transparent;stroke-width:2}
+.v21CashBar.selected{fill:var(--blue);opacity:1;stroke:rgba(255,255,255,.88)}
+html[data-theme="dark"] .v21CashBar.selected{stroke:#0d1421}
+/* Marker motion is driven by requestAnimationFrame; CSS transitions would add lag. */
+.v21Select,.v21Dot{transition:none!important}

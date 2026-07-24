@@ -1,9 +1,9 @@
-const CACHE='pension-v2-3-0-final';
+const CACHE='pension-v2-4-0-final';
 const ASSETS=[
   './','./index.html','./manifest.webmanifest','./icon.svg',
   './base.css','./components.css','./features.css','./v21.css',
   './core.js','./ui.js','./analysis.js','./ocr.js','./backup.js',
-  './planning.js','./ledger.js','./coach.js','./integrity.js','./v21.js'
+  './planning.js','./ledger.js','./coach.js','./integrity.js','./charts.js','./v21.js'
 ];
 self.addEventListener('install',event=>event.waitUntil(
   caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())
