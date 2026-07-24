@@ -1,12 +1,17 @@
-/* 개인연금 V2.1 사용자 중심 최종 개편 */
+/* 개인연금 V2.3 · 최종 사용자 경험 레이어 */
 (()=>{
 'use strict';
-const BUILD='2.1.2';
+const BUILD='2.3.0';
 const LABEL={all:'전체',pension:'연금저축',irp:'IRP'};
 const N=v=>Number.isFinite(Number(v))?Number(v):0;
-/* V2.1부터 나이는 저장값이 아니라 출생연도로 계산한다.
-   이전 검토판이 임시로 만든 출생연도와 기존 나이가 충돌하면, 최초 1회는 기존 나이를 우선해 이관한다. */
-state.profile=state.profile||{}; state.meta=state.meta||{};
+const THEME_VALUES=new Set(['auto','light','dark']);
+const themeMedia=window.matchMedia?.('(prefers-color-scheme: dark)');
+
+/* ---------- profile + theme ---------- */
+state.profile=state.profile||{};
+state.settings=state.settings||{};
+state.meta=state.meta||{};
+state.ui=state.ui||{};
 if(state.meta.birthYearBasisVersion!=='year-age-v1'){
   const oldAge=N(state.profile.age),storedBirth=N(state.profile.birthYear);
   const ageFromBirth=storedBirth>=1900&&storedBirth<=CURRENT_YEAR?CURRENT_YEAR-storedBirth+1:0;
@@ -20,30 +25,67 @@ const currentAge=()=>{
   return birth>=1900&&birth<=CURRENT_YEAR?Math.max(1,CURRENT_YEAR-birth+1):N(state.profile?.age)||32;
 };
 function syncAge(){state.profile.age=currentAge()}
-syncAge();
-document.title='개인연금 V2.1';
-state.meta=state.meta||{}; state.meta.appVersion=BUILD; state.meta.uxBuild='v2.1';
-state.ui=state.ui||{};
-if(!['performance','cashflow','compare'].includes(state.ui.analysisPanel)) state.ui.analysisPanel='performance';
-state.ui.v21CashPeriod=state.ui.v21CashPeriod||'5y';
-state.ui.v21Scenario=['base','safe','custom'].includes(state.ui.v21Scenario)?state.ui.v21Scenario:'base';
-state.ui.v21CashMetric=state.ui.v21CashMetric||'dividend';
+function themeMode(){return THEME_VALUES.has(state.settings.theme)?state.settings.theme:'auto'}
+function resolvedTheme(mode=themeMode()){return mode==='dark'||(mode==='auto'&&themeMedia?.matches)?'dark':'light'}
+function applyTheme(mode=themeMode(),persist=false){
+  if(!THEME_VALUES.has(mode))mode='auto';
+  state.settings.theme=mode;
+  const resolved=resolvedTheme(mode),root=document.documentElement;
+  root.dataset.theme=resolved;root.dataset.themeMode=mode;
+  const color=resolved==='dark'?'#0d1421':'#f4f7fb';
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content',color);
+  const apple=document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+  if(apple)apple.setAttribute('content',resolved==='dark'?'black-translucent':'default');
+  if(persist)save();
+}
+if(themeMedia?.addEventListener)themeMedia.addEventListener('change',()=>{if(themeMode()==='auto')applyTheme('auto')});
+else if(themeMedia?.addListener)themeMedia.addListener(()=>{if(themeMode()==='auto')applyTheme('auto')});
+function refreshForNewLocalDate(){
+  if(localYmd(new Date())===BOOT_LOCAL_DATE)return;
+  if(document.querySelector('.overlay.open'))return;
+  try{save()}catch(_){ }
+  location.reload();
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshForNewLocalDate()});
+window.addEventListener('focus',refreshForNewLocalDate);
+/* 자정을 넘긴 채 앱을 계속 열어 둔 경우에도 연도·월 기준을 새로 로드한다. */
+const rolloverTimer=setInterval(refreshForNewLocalDate,60000);
+const v23CloseSheet=closeSheet;
+closeSheet=function(){
+  const result=v23CloseSheet.apply(this,arguments);
+  setTimeout(refreshForNewLocalDate,260);
+  return result;
+};
+window.addEventListener('pagehide',()=>clearInterval(rolloverTimer),{once:true});
 
+syncAge();applyTheme();
+document.title='개인연금 V2.3';
+state.meta.appVersion=BUILD;state.meta.uxBuild='v2.3-final';
+if(!['performance','cashflow','compare'].includes(state.ui.analysisPanel))state.ui.analysisPanel='performance';
+state.ui.v21CashPeriod=['12m','3y','5y','all'].includes(state.ui.v21CashPeriod)?state.ui.v21CashPeriod:'5y';
+state.ui.v21CashMetric=['dividend','realized'].includes(state.ui.v21CashMetric)?state.ui.v21CashMetric:'dividend';
+state.ui.v21Scenario=['base','safe','custom'].includes(state.ui.v21Scenario)?state.ui.v21Scenario:'base';
+
+/* ---------- data helpers ---------- */
 const rowsFor=(scope='all')=>{
   const src=scope==='all'?(state.years||{}):(state.accountYears?.[scope]||{});
   return Object.keys(src).map(Number).filter(Number.isFinite).sort((a,b)=>a-b).map(year=>({year,...src[year]}));
 };
-const scopeSelect=scope=>`<div class="v21Scope"><span>계좌</span><select id="v21Scope"><option value="all" ${scope==='all'?'selected':''}>전체</option><option value="pension" ${scope==='pension'?'selected':''}>연금저축</option><option value="irp" ${scope==='irp'?'selected':''}>IRP</option></select></div>`;
-function bindScope(renderer){const s=document.getElementById('v21Scope');if(s)s.onchange=()=>{state.ui.analysisScope=s.value;state.ui.v21Point=999;renderer(document.getElementById('analysisContent'));save()}}
+const scopeSelect=scope=>`<div class="v21Scope"><span>계좌</span><select id="v21Scope" aria-label="분석 계좌"><option value="all" ${scope==='all'?'selected':''}>전체</option><option value="pension" ${scope==='pension'?'selected':''}>연금저축</option><option value="irp" ${scope==='irp'?'selected':''}>IRP</option></select></div>`;
+function bindScope(renderer){
+  const s=document.getElementById('v21Scope');
+  if(s)s.onchange=()=>{state.ui.analysisScope=s.value;state.ui.v21Point=999;renderer(document.getElementById('analysisContent'));save()};
+}
 function contributionInfo(){
   const row=state.years?.[CURRENT_YEAR]||{},paid=Math.max(0,N(row.contribution));
-  const plan=(N(state.settings.monthly?.pension)+N(state.settings.monthly?.irp))*12;
+  const monthly=N(state.settings.monthly?.pension)+N(state.settings.monthly?.irp),plan=monthly*12,planToDate=monthly*CURRENT_MONTH;
   const status=currentContributionStatus(),planned=['pension','irp'].filter(k=>N(state.settings.monthly?.[k])>0),missing=planned.filter(k=>!status[k]);
-  return {paid,plan,pct:plan?clamp(paid/plan*100,0,100):0,missing,status};
+  return {paid,monthly,plan,planToDate,pct:plan?clamp(paid/plan*100,0,100):0,onTrackPct:planToDate?paid/planToDate*100:100,missing,status};
 }
 function freshness(){
-  const raw=String(state.lastUpdated||'').trim(); if(!raw)return null;
-  const d=new Date(raw.replace(/\./g,'-')+'T00:00:00'); return Number.isNaN(d.getTime())?null:Math.max(0,Math.floor((Date.now()-d.getTime())/86400000));
+  const raw=String(state.lastUpdated||'').trim();if(!raw)return null;
+  const d=new Date(raw.replace(/\./g,'-')+'T00:00:00');
+  return Number.isNaN(d.getTime())?null:Math.max(0,Math.floor((Date.now()-d.getTime())/86400000));
 }
 function allocationSnapshot(){
   const totals=classTotals(),total=Object.values(totals).reduce((a,b)=>a+N(b),0)||1;
@@ -52,198 +94,269 @@ function allocationSnapshot(){
   return {classes,total,top:holdings[0]||null,topPct:holdings[0]?N(holdings[0].value)/total*100:0};
 }
 function expectedHistory(rows){
-  const rate=N(state.settings.returnRate)/100;
-  let expected=rows.length?N(rows[0].start):0;
+  const annual=Math.max(-.95,N(state.settings.returnRate)/100),rm=Math.pow(1+annual,1/12)-1;
+  let expected=rows.length?Math.max(0,N(rows[0].start)):0;
   return rows.map((d,i)=>{
-    const contribution=Math.max(0,N(d.contribution));
-    if(i===0&&expected===0) expected=Math.max(0,N(d.start));
-    expected=expected*(1+rate)+contribution*(1+rate/2);
+    if(i===0&&expected===0)expected=Math.max(0,N(d.start));
+    const months=d.year===CURRENT_YEAR?Math.max(1,CURRENT_MONTH):12;
+    const contribution=Math.max(0,N(d.contribution)),monthlyContribution=contribution/months;
+    for(let m=0;m<months;m++)expected=(expected+monthlyContribution)*(1+rm);
     return {...d,expected};
   });
 }
+function trailingDividendSums(){
+  const values=[];
+  for(let offset=23;offset>=0;offset--){
+    const d=new Date(CURRENT_YEAR,CURRENT_MONTH-1-offset,1),row=state.years?.[d.getFullYear()]||{};
+    values.push(N(row.monthly?.[d.getMonth()]));
+  }
+  return {previous:values.slice(0,12).reduce((a,b)=>a+b,0),recent:values.slice(12).reduce((a,b)=>a+b,0)};
+}
 function aiDecision(){
-  const all=expectedHistory(rowsFor('all')),
-    latest=all.at(-1)||{}, prev=all.at(-2)||{}, alloc=allocationSnapshot(), fresh=freshness();
-  const actual=N(latest.end),expected=N(latest.expected),deviation=expected?((actual/expected)-1)*100:0;
-  const latestReturn=N(latest.return),prevDividend=N(prev.dividend),dividendGrowth=prevDividend?((N(latest.dividend)/prevDividend)-1)*100:0;
-  const con=contributionInfo();
-  if(fresh==null||fresh>60)return {level:'자료 확인',kind:'stale',title:'최신 잔고를 반영한 뒤 판단하세요',reason:`${fresh==null?'마지막 갱신일을 확인할 수 없습니다':`마지막 갱신이 ${fresh}일 전입니다`}. 오래된 보유내역과 비중으로 매매 결정을 내리면 현재 상태와 다를 수 있습니다.`,action:'자산현황 갱신',question:'지금 매매 판단을 미루는 게 맞을까?'};
-  if(alloc.topPct>=42)return {level:'집중 주의',kind:'concentration',title:'상위 종목 추가매수는 한 번 더 확인하세요',reason:`${alloc.top?.name||'상위 종목'}이 전체 개인연금의 ${alloc.topPct.toFixed(1)}%입니다. 기존 보유분을 급히 매도하기보다 다음 납입을 부족 자산군에 배분하는 방식이 더 단순합니다.`,action:'다음 납입을 부족 자산군에 배분',question:'리밸런싱을 매도로 할까, 납입으로 할까?'};
-  if(dividendGrowth>=25&&latestReturn<0)return {level:'착시 주의',kind:'income',title:'분배금 증가와 총수익을 따로 보세요',reason:`분배금은 전년보다 ${dividendGrowth.toFixed(0)}% 늘었지만 기록된 최근 투자수익률은 ${pct(latestReturn)}입니다. 현금흐름이 늘었다는 이유만으로 운용 성과가 개선됐다고 판단할 수 없습니다.`,action:'분배금보다 총수익 먼저 확인',question:'배당형 비중이 너무 높은가?'};
-  if(deviation>=15&&latestReturn>0)return {level:'계획 점검',kind:'hot',title:'좋은 성과를 장기 기대치로 올리지 마세요',reason:`현재 자산은 앱의 기대 경로보다 ${deviation.toFixed(1)}% 앞서 있습니다. 이는 입력된 연간 기록을 기준으로 한 비교이며 실시간 시장 과열 판단은 아닙니다.`,action:'기대수익률은 그대로 유지',question:'현재 성과 때문에 계획을 바꿔도 될까?'};
-  if(deviation<=-15&&latestReturn<0)return {level:'계획 점검',kind:'cold',title:'손실률만으로 전량 매도하지 마세요',reason:`현재 자산은 앱의 기대 경로보다 ${Math.abs(deviation).toFixed(1)}% 뒤에 있습니다. 손실 자체보다 납입 중단, 자산 집중, 투자 전제 변화가 있었는지 먼저 확인해야 합니다.`,action:'원인 확인 후 계획 유지 여부 판단',question:'지금 매도해야 할 근거가 충분할까?'};
-  if(con.plan>0&&con.paid<con.plan*0.5&&CURRENT_MONTH>=7)return {level:'계획 이탈',kind:'stale',title:'투자판단보다 납입 계획부터 확인하세요',reason:`올해 실제 납입은 계획의 ${Math.round(con.pct)}%입니다. 자산배분 판단 전에 납입이 일시적으로 밀린 것인지 계획 자체가 바뀐 것인지 구분하는 편이 정확합니다.`,action:'올해 납입 계획 재확인',question:'월 납입 계획을 현실적으로 바꿀까?'};
-  return {level:'특이사항 없음',kind:'ok',title:'현재 기록에서 즉시 바꿀 신호는 없습니다',reason:'현재 비중, 납입, 계획 대비 자산 흐름에서 즉시 매매를 요구할 만한 뚜렷한 이상 신호가 없습니다. 실시간 시세의 급등·급락을 판단한 결과는 아닙니다.',action:'현재 계획 유지',question:'지금 계획을 유지해도 될까?'};
+  const all=expectedHistory(rowsFor('all')),latest=all.at(-1)||{},alloc=allocationSnapshot(),fresh=freshness(),con=contributionInfo(),trailing=trailingDividendSums();
+  const actual=N(latest.end),expected=N(latest.expected),deviation=expected?((actual/expected)-1)*100:0,latestReturn=N(latest.return);
+  const dividendGrowth=trailing.previous?((trailing.recent/trailing.previous)-1)*100:0;
+  if(fresh==null||fresh>60)return {level:'자료 확인',kind:'stale',title:'최신 잔고를 반영한 뒤 판단하세요',reason:`${fresh==null?'마지막 갱신일을 확인할 수 없습니다':`마지막 갱신이 ${fresh}일 전입니다`}. 오래된 보유내역과 비중으로 매매 결정을 내리면 현재 상태와 다를 수 있습니다.`,action:'자산현황 갱신'};
+  if(alloc.topPct>=42)return {level:'집중 주의',kind:'concentration',title:'상위 종목 추가매수는 한 번 더 확인하세요',reason:`${alloc.top?.name||'상위 종목'}이 전체 개인연금의 ${alloc.topPct.toFixed(1)}%입니다. 기존 보유분을 급히 매도하기보다 다음 납입을 부족 자산군에 배분하는 방식이 더 단순합니다.`,action:'다음 납입을 부족 자산군에 배분'};
+  if(dividendGrowth>=25&&latestReturn<0)return {level:'착시 주의',kind:'income',title:'분배금 증가와 총수익을 따로 보세요',reason:`최근 12개월 분배금은 이전 12개월보다 ${dividendGrowth.toFixed(0)}% 늘었지만 기록된 최근 투자수익률은 ${pct(latestReturn)}입니다. 현금흐름 증가만으로 운용 성과가 좋아졌다고 판단할 수 없습니다.`,action:'분배금보다 총수익 먼저 확인'};
+  if(deviation>=15&&latestReturn>0)return {level:'기대치 주의',kind:'hot',title:'좋은 성과를 장기 기대수익률로 올리지 마세요',reason:`현재 자산은 실제 납입액에 설정 수익률을 적용한 기대경로보다 ${deviation.toFixed(1)}% 앞서 있습니다. 이는 실시간 시장 과열 판단이 아니라 계획 대비 성과 점검입니다.`,action:'장기 기대수익률은 그대로 유지'};
+  if(deviation<=-15&&latestReturn<0)return {level:'매도 주의',kind:'cold',title:'손실률만으로 전량 매도하지 마세요',reason:`현재 자산은 기대경로보다 ${Math.abs(deviation).toFixed(1)}% 뒤에 있습니다. 납입 중단, 자산 집중, 투자 전제 변화가 있었는지 먼저 확인해야 합니다.`,action:'원인 확인 후 계획 유지 여부 판단'};
+  if(con.planToDate>0&&con.onTrackPct<75&&CURRENT_MONTH>=3)return {level:'계획 이탈',kind:'stale',title:'투자판단보다 납입 계획부터 확인하세요',reason:`${CURRENT_MONTH}월까지 계획 납입은 ${man(con.planToDate)}인데 실제 기록은 ${man(con.paid)}입니다. 일시적인 지연인지 계획 자체가 바뀐 것인지 먼저 구분하는 편이 정확합니다.`,action:'월 납입 계획 재확인'};
+  return {level:'특이사항 없음',kind:'ok',title:'현재 기록에서 즉시 바꿀 신호는 없습니다',reason:'기대경로, 납입, 목표 비중, 거래 기록에서 즉시 매매를 요구할 뚜렷한 신호가 없습니다. 실시간 시세의 급등·급락을 판단한 결과는 아닙니다.',action:'현재 계획 유지'};
 }
 
-function path(points){return points.map((p,i)=>`${i?'L':'M'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')}
+/* ---------- chart helpers ---------- */
+const lerp=(a,b,t)=>a+(b-a)*t;
+function compactMoney(v){
+  const n=N(v),a=Math.abs(n),sign=n<0?'-':'';
+  const unit=(x,suffix)=>`${sign}${Number.isInteger(x)?x.toFixed(0):x.toFixed(x>=10?1:2).replace(/0+$/,'').replace(/\.$/,'')}${suffix}`;
+  if(a>=1e12)return unit(a/1e12,'조');
+  if(a>=1e8)return unit(a/1e8,'억');
+  if(a>=1e4)return unit(a/1e4,'만');
+  return `${Math.round(n).toLocaleString('ko-KR')}`;
+}
+function niceStep(raw){
+  if(!Number.isFinite(raw)||raw<=0)return 1;
+  const power=10**Math.floor(Math.log10(raw)),fraction=raw/power;
+  const nice=fraction<=1?1:fraction<=2?2:fraction<=2.5?2.5:fraction<=5?5:10;
+  return nice*power;
+}
+function axisScale(values,tickCount=4,includeZero=true){
+  const finite=values.map(N).filter(Number.isFinite),rawMin=Math.min(...finite,0),rawMax=Math.max(...finite,1);
+  let min=includeZero?Math.min(0,rawMin):rawMin,max=includeZero?Math.max(0,rawMax):rawMax;
+  const step=niceStep((max-min)/tickCount||1);min=Math.floor(min/step)*step;max=Math.ceil(max/step)*step;if(max===min)max=min+step;
+  const ticks=[];for(let v=min,i=0;i<=tickCount;i++,v=min+step*i)ticks.push(v);if(ticks.at(-1)<max-step*.1)ticks.push(max);
+  return {min,max,step,ticks};
+}
+function linePath(points){return points.map((p,i)=>`${i?'L':'M'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
+function smoothPath(points){
+  if(points.length<3)return linePath(points);
+  let d=`M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+  for(let i=0;i<points.length-1;i++){
+    const p0=points[Math.max(0,i-1)],p1=points[i],p2=points[i+1],p3=points[Math.min(points.length-1,i+2)];
+    const c1x=p1.x+(p2.x-p0.x)/6,c1y=p1.y+(p2.y-p0.y)/6,c2x=p2.x-(p3.x-p1.x)/6,c2y=p2.y-(p3.y-p1.y)/6;
+    d+=` C ${c1x.toFixed(2)} ${c1y.toFixed(2)}, ${c2x.toFixed(2)} ${c2y.toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
+  }
+  return d;
+}
+function interpolatePoints(points,raw){
+  const lo=Math.floor(raw),hi=Math.min(points.length-1,Math.ceil(raw)),t=raw-lo,a=points[lo]||points[0],b=points[hi]||a,out={};
+  for(const key of Object.keys(a))out[key]=typeof a[key]==='number'?lerp(a[key],b[key],t):a[key];
+  return out;
+}
+function animateRaw(from,to,duration,draw){
+  let cancelled=false,raf=0;const start=performance.now();
+  const step=now=>{if(cancelled)return;const t=clamp((now-start)/Math.max(1,duration),0,1),ease=1-(1-t)**3;draw(lerp(from,to,ease));if(t<1)raf=requestAnimationFrame(step)};
+  raf=requestAnimationFrame(step);
+  return ()=>{cancelled=true;if(raf)cancelAnimationFrame(raf)};
+}
+function bindSmoothPointer(hitId,count,{position,index,commit}){
+  const hit=document.getElementById(hitId);if(!hit||count<1)return;
+  let pointerId=null,startX=0,startY=0,startRaw=0,horizontal=false,lastRaw=0,lastIndex=-1,frame=0,pending=null,suppressClick=false,cancelSettle=null,commitTimer=0;
+  const rawFrom=e=>{const r=hit.getBoundingClientRect(),pct=clamp((e.clientX-r.left)/Math.max(1,r.width),0,1);return pct*Math.max(0,count-1)};
+  const draw=raw=>{lastRaw=clamp(raw,0,Math.max(0,count-1));position(lastRaw);const i=Math.round(lastRaw);if(i!==lastIndex){lastIndex=i;index(i)}};
+  const stopSettle=()=>{cancelSettle?.();cancelSettle=null;if(commitTimer){clearTimeout(commitTimer);commitTimer=0}};
+  const schedule=raw=>{pending=raw;if(frame)return;frame=requestAnimationFrame(()=>{frame=0;draw(pending)})};
+  const settle=raw=>{stopSettle();const target=Math.round(clamp(raw,0,Math.max(0,count-1)));cancelSettle=animateRaw(lastRaw,target,105,draw);commitTimer=setTimeout(()=>{cancelSettle=null;commitTimer=0;commit(target)},115)};
+  hit.onpointerdown=e=>{stopSettle();pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;startRaw=rawFrom(e);horizontal=false;draw(startRaw);try{hit.setPointerCapture(e.pointerId)}catch(_){}};
+  hit.onpointermove=e=>{if(pointerId!==e.pointerId)return;const dx=Math.abs(e.clientX-startX),dy=Math.abs(e.clientY-startY);if(!horizontal&&Math.max(dx,dy)>5){if(dy>dx){pointerId=null;try{hit.releasePointerCapture(e.pointerId)}catch(_){}return}horizontal=true;document.body.classList.add('charting')}if(horizontal){e.preventDefault();schedule(rawFrom(e))}};
+  const finish=e=>{if(pointerId!==e.pointerId)return;const raw=horizontal?rawFrom(e):startRaw;pointerId=null;document.body.classList.remove('charting');suppressClick=true;settle(raw);setTimeout(()=>{suppressClick=false},180)};
+  hit.onpointerup=finish;hit.onpointercancel=e=>{if(pointerId===e.pointerId){pointerId=null;document.body.classList.remove('charting');stopSettle()}};
+  hit.onclick=e=>{if(suppressClick||pointerId!=null)return;settle(rawFrom(e))};
+}
+function triplePosition(id,chart,raw){
+  const q=interpolatePoints(chart.pts,raw),sel=document.getElementById(id+'Sel');if(sel){sel.setAttribute('x1',q.x);sel.setAttribute('x2',q.x)}
+  for(const [suffix,key] of [['A','actual'],['E','expected'],['C','contrib']]){const dot=document.getElementById(id+suffix);if(dot){dot.setAttribute('cx',q.x);dot.setAttribute('cy',q[key])}}
+}
 function buildTripleChart(data,id){
-  const W=640,H=270,p={l:34,r:18,t:18,b:34};
-  const max=Math.max(1,...data.flatMap(d=>[N(d.end),N(d.expected),N(d.cumulative)]))*1.04;
-  const x=i=>p.l+(W-p.l-p.r)*(data.length<=1?.5:i/(data.length-1));
-  const y=v=>p.t+(H-p.t-p.b)*(1-N(v)/max);
-  const floor=H-p.b;
+  const W=640,H=270,p={l:58,r:18,t:18,b:34},scale=axisScale(data.flatMap(d=>[N(d.end),N(d.expected),N(d.cumulative)]),4,true),floor=H-p.b;
+  const x=i=>p.l+(W-p.l-p.r)*(data.length<=1?.5:i/(data.length-1)),y=v=>p.t+(H-p.t-p.b)*(1-(N(v)-scale.min)/(scale.max-scale.min));
   const pts=data.map((d,i)=>({x:x(i),actual:y(d.end),expected:y(d.expected),contrib:y(d.cumulative)}));
-  const ticks=[.25,.5,.75,1].map(t=>{const yy=p.t+(H-p.t-p.b)*(1-t);return `<line x1="${p.l}" x2="${W-p.r}" y1="${yy}" y2="${yy}" class="v21Grid"/><text x="${p.l}" y="${yy-6}" class="v21Axis">${man(max*t)}</text>`}).join('');
-  const labelIdx=[0,Math.round((data.length-1)/2),data.length-1].filter((v,i,a)=>v>=0&&a.indexOf(v)===i);
-  const labels=labelIdx.map(i=>`<text x="${x(i)}" y="${H-8}" text-anchor="middle" class="v21Axis">${data[i].year}</text>`).join('');
-  const contribPath=path(pts.map(q=>({x:q.x,y:q.contrib})))+` L ${pts.at(-1).x} ${floor} L ${pts[0].x} ${floor} Z`;
-  return {W,H,p,pts,svg:`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><defs><linearGradient id="${id}ContribFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8c4d3" stop-opacity=".24"/><stop offset="1" stop-color="#b8c4d3" stop-opacity=".05"/></linearGradient></defs>${ticks}${labels}<path d="${contribPath}" fill="url(#${id}ContribFill)"/><path d="${path(pts.map(q=>({x:q.x,y:q.contrib})))}" class="v21Line v21Contrib"/><path d="${path(pts.map(q=>({x:q.x,y:q.expected})))}" class="v21Line v21Expected"/><path d="${path(pts.map(q=>({x:q.x,y:q.actual})))}" class="v21Line v21Actual"/><line id="${id}Sel" class="v21Select" x1="${pts[0].x}" x2="${pts[0].x}" y1="${p.t}" y2="${H-p.b}"/><circle id="${id}A" class="v21Dot actual" r="6"/><circle id="${id}E" class="v21Dot expected" r="5"/><circle id="${id}C" class="v21Dot contrib" r="5"/><rect id="${id}Hit" class="v21Hit" x="${p.l}" y="${p.t}" width="${W-p.l-p.r}" height="${H-p.t-p.b}"/></svg>`};
+  const ticks=scale.ticks.map(v=>{const yy=y(v);return `<line x1="${p.l}" x2="${W-p.r}" y1="${yy}" y2="${yy}" class="v21Grid"/><text x="${p.l-7}" y="${yy+4}" text-anchor="end" class="v21Axis">${compactMoney(v)}</text>`}).join('');
+  const labelIdx=[0,Math.round((data.length-1)/2),data.length-1].filter((v,i,a)=>v>=0&&a.indexOf(v)===i),labels=labelIdx.map(i=>`<text x="${x(i)}" y="${H-8}" text-anchor="middle" class="v21Axis">${data[i].year}</text>`).join('');
+  const contribLine=smoothPath(pts.map(q=>({x:q.x,y:q.contrib}))),contribArea=contribLine+` L ${pts.at(-1).x} ${floor} L ${pts[0].x} ${floor} Z`;
+  return {pts,svg:`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><defs><linearGradient id="${id}Fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#aab7c7" stop-opacity=".22"/><stop offset="1" stop-color="#aab7c7" stop-opacity=".04"/></linearGradient></defs>${ticks}${labels}<path d="${contribArea}" fill="url(#${id}Fill)"/><path d="${contribLine}" class="v21Line v21Contrib"/><path d="${smoothPath(pts.map(q=>({x:q.x,y:q.expected})))}" class="v21Line v21Expected"/><path d="${smoothPath(pts.map(q=>({x:q.x,y:q.actual})))}" class="v21Line v21Actual"/><line id="${id}Sel" class="v21Select" y1="${p.t}" y2="${H-p.b}"/><circle id="${id}A" class="v21Dot actual" r="6"/><circle id="${id}E" class="v21Dot expected" r="5"/><circle id="${id}C" class="v21Dot contrib" r="5"/><rect id="${id}Hit" class="v21Hit" x="${p.l}" y="${p.t}" width="${W-p.l-p.r}" height="${H-p.t-p.b}"/></svg>`};
 }
-function selectTriple(id,chart,i){
-  const q=chart.pts[i]; if(!q)return;
-  const sel=document.getElementById(id+'Sel'); if(sel){sel.setAttribute('x1',q.x);sel.setAttribute('x2',q.x)}
-  for(const [s,y] of [['A',q.actual],['E',q.expected],['C',q.contrib]]){const c=document.getElementById(id+s);if(c){c.setAttribute('cx',q.x);c.setAttribute('cy',y)}}
-}
-function bindPointer(hitId,count,update){const hit=document.getElementById(hitId);if(!hit)return;let drag=false;const nearest=e=>{const r=hit.getBoundingClientRect(),pct=clamp((e.clientX-r.left)/Math.max(1,r.width),0,1);return Math.round(pct*Math.max(0,count-1))};hit.onpointerdown=e=>{drag=true;try{hit.setPointerCapture(e.pointerId)}catch(_){} update(nearest(e),false)};hit.onpointermove=e=>{if(drag)update(nearest(e),false)};hit.onpointerup=e=>{drag=false;update(nearest(e),true)};hit.onpointercancel=()=>drag=false}
 
+/* ---------- home ---------- */
 function renderV21Home(){
   syncAge();
   const total=totalAsset(),principal=totalPrincipal(),profit=total-principal,ret=principal?profit/principal*100:0,con=contributionInfo(),goal=goalStatus(),ai=aiDecision(),fresh=freshness();
-  const accounts=Object.entries(state.accounts).map(([k,a])=>{const v=accountTotal(a),p=v-N(a.principal),yearPaid=N(state.accountYears?.[k]?.[CURRENT_YEAR]?.contribution);return `<button class="v21Account" data-account-link="${k}"><span><b>${esc(a.name)}</b><small>올해 납입 ${man(yearPaid)}</small></span><span><b>${man(v)}</b><small class="${p>=0?'good':'bad'}">손익 ${p>=0?'+':''}${man(p)}</small></span><i>›</i></button>`}).join('');
-  const aiHtml=ai.kind==='ok'?`<button class="v21AiCompact" id="v21Ai"><span><b>AI 판단</b><small>${esc(ai.title)}</small></span><i>›</i></button>`:`<button class="v21AiAlert ${ai.kind}" id="v21Ai"><div><span>AI 판단 · ${esc(ai.level)}</span><h3>${esc(ai.title)}</h3><p>${esc(ai.reason)}</p></div><b>${esc(ai.action)} ›</b></button>`;
-  const expandLabel=state.ui.homeExpanded?'간단히 보기':'계좌별 보기';
-  document.getElementById('home').innerHTML=`<div class="stack v21Home"><section class="card v21Hero"><button class="v21HeroMain" id="v21Total"><div><span>개인연금 총자산</span><strong>${man(total)}</strong><small class="${profit>=0?'good':'bad'}">투자손익 ${profit>=0?'+':''}${man(profit)} · ${pct(ret)}</small></div><div><small>마지막 갱신</small><b>${fresh==null?'확인 필요':fresh===0?'오늘':`${fresh}일 전`}</b><em class="v21ExpandLabel" id="v21ExpandLabel">${expandLabel}</em></div></button><div class="expand ${state.ui.homeExpanded?'open':''}" id="v21Accounts"><div><div>${accounts}</div><div class="v21Exact">정확한 금액 ${fmt(total)} · 누적 순납입 ${fmt(principal)}</div></div></div></section><div class="v21HomeGrid"><button class="card v21Mini" id="v21Contribution"><span>${CURRENT_YEAR}년 납입</span><strong>${man(con.paid)}</strong><div class="v21Progress"><i style="width:${con.pct}%"></i></div><small>${Math.round(con.pct)}% 완료 · 계획 ${man(con.plan)}</small></button><button class="card v21Mini" id="v21Future"><span>${state.profile.retirementAge}세 예상 월연금</span><strong>${man(goal.real)}</strong><small>${goal.real>=N(state.settings.goalMonthly)?'목표 달성권':'목표보다 '+man(Math.max(0,N(state.settings.goalMonthly)-goal.real))+' 부족'} · 자세히 ›</small></button></div>${aiHtml}<div class="v21Quick"><button id="v21Pay">이번 달 납입</button><button id="v21Snap">자산 갱신</button></div></div>`;
-  document.getElementById('v21Total').onclick=()=>{state.ui.homeExpanded=!state.ui.homeExpanded;document.getElementById('v21Accounts').classList.toggle('open',state.ui.homeExpanded);document.getElementById('v21ExpandLabel').textContent=state.ui.homeExpanded?'간단히 보기':'계좌별 보기';save()};
-  document.querySelectorAll('[data-account-link]').forEach(b=>b.onclick=e=>{e.stopPropagation();navigate('account',b.dataset.accountLink)});
+  const aiHtml=ai.kind==='ok'?`<button class="v21AiCompact" id="v21Ai"><span><b>AI 코치</b><small>${esc(ai.title)}</small></span><i>›</i></button>`:`<button class="v21AiAlert ${ai.kind}" id="v21Ai"><div><span>AI 코치 · ${esc(ai.level)}</span><h3>${esc(ai.title)}</h3><p>${esc(ai.reason)}</p></div><b>${esc(ai.action)} ›</b></button>`;
+  document.getElementById('home').innerHTML=`<div class="stack v21Home"><section class="card v21Hero v21HeroFixed"><div class="v21HeroMain"><div><span>개인연금 총자산</span><strong>${man(total)}</strong><small class="${profit>=0?'good':'bad'}">투자손익 ${profit>=0?'+':''}${man(profit)} · ${pct(ret)}</small></div><div><small>마지막 갱신</small><b>${fresh==null?'확인 필요':fresh===0?'오늘':`${fresh}일 전`}</b><button class="v21AccountLink" id="v21AccountLink">계좌별 보기</button></div></div><div class="v21Exact">정확한 금액 ${fmt(total)} · 누적 순납입 ${fmt(principal)}</div></section><div class="v21HomeGrid"><button class="card v21Mini" id="v21Contribution"><span>${CURRENT_YEAR}년 납입</span><strong>${man(con.paid)}</strong><div class="v21Progress"><i style="width:${con.pct}%"></i></div><small>${Math.round(con.pct)}% 완료 · 계획 ${man(con.plan)}</small></button><button class="card v21Mini" id="v21Future"><span>${state.profile.retirementAge}세 예상 월연금</span><strong>${man(goal.real)}</strong><small>${goal.real>=N(state.settings.goalMonthly)?'목표 달성권':'목표보다 '+man(Math.max(0,N(state.settings.goalMonthly)-goal.real))+' 부족'} · 자세히 ›</small></button></div>${aiHtml}<div class="v21Quick"><button id="v21Pay">이번 달 납입</button><button id="v21Snap">자산 갱신</button></div></div>`;
+  document.getElementById('v21AccountLink').onclick=()=>navigate('account');
   document.getElementById('v21Contribution').onclick=()=>quickForm('contribution');
-  document.getElementById('v21Future').onclick=()=>navigate('future');
+  document.getElementById('v21Future').onclick=()=>{scrollPos.future=0;navigate('future')};
   document.getElementById('v21Pay').onclick=()=>quickForm('contribution');
   document.getElementById('v21Snap').onclick=()=>quickForm('snapshot');
-  document.getElementById('v21Ai').onclick=()=>{state.ui.analysisPanel='compare';navigate('analysis');renderAnalysis();save()};
+  document.getElementById('v21Ai').onclick=()=>{state.ui.analysisPanel='compare';scrollPos.analysis=0;navigate('analysis');renderAnalysis();save()};
 }
 
+/* ---------- performance ---------- */
 function renderPerformance21(el){
   const scope=['all','pension','irp'].includes(state.ui.analysisScope)?state.ui.analysisScope:'all',rows=expectedHistory(rowsFor(scope));
   if(!rows.length){el.innerHTML=scopeSelect(scope)+`<div class="card empty"><b>성과 기록이 없어요</b><p>과거 연도와 현재 자산을 입력하면 생성됩니다.</p></div>`;bindScope(renderPerformance21);return}
-  let idx=clamp(Number.isFinite(Number(state.ui.v21Point))?Number(state.ui.v21Point):rows.length-1,0,rows.length-1);const chart=buildTripleChart(rows,'v21Perf');
-  el.innerHTML=`${scopeSelect(scope)}<div class="stack"><section class="card v21ChartCard"><div class="v21ChartHead"><div><h2>실제 · 기대 · 순납입</h2><p>그래프를 좌우로 움직여 연도별 차이를 확인하세요.</p></div></div><div class="v21Legend"><span><i class="actual"></i>실제자산</span><span><i class="expected"></i>기대경로</span><span><i class="contrib"></i>누적 순납입</span></div><div class="v21Chart">${chart.svg}</div><div class="v21PointCard" id="v21PerfPoint"></div></section><details class="card v21Details"><summary>연도별 표 보기</summary><div class="v21TableWrap"><table><thead><tr><th>연도</th><th>실제</th><th>기대</th><th>순납입</th></tr></thead><tbody>${rows.slice().reverse().map(r=>`<tr><td>${r.year}</td><td>${man(r.end)}</td><td>${man(r.expected)}</td><td>${man(r.cumulative)}</td></tr>`).join('')}</tbody></table></div></details></div>`;
-  const update=(i,commit)=>{idx=i;state.ui.v21Point=i;const d=rows[i],vsExpected=N(d.end)-N(d.expected),profit=N(d.end)-N(d.cumulative);selectTriple('v21Perf',chart,i);document.getElementById('v21PerfPoint').innerHTML=`<div><span>${d.year}년 실제자산</span><strong>${man(d.end)}</strong></div><div class="v21PointGrid"><span>기대경로 <b>${man(d.expected)}</b></span><span>누적 순납입 <b>${man(d.cumulative)}</b></span><span>기대 대비 <b class="${vsExpected>=0?'good':'bad'}">${vsExpected>=0?'+':''}${man(vsExpected)}</b></span><span>누적 투자손익 <b class="${profit>=0?'good':'bad'}">${profit>=0?'+':''}${man(profit)}</b></span></div>`;if(commit)save()};
-  update(idx,false);bindPointer('v21PerfHit',rows.length,update);bindScope(renderPerformance21);
+  let idx=clamp(Number.isFinite(Number(state.ui.v21Point))?Number(state.ui.v21Point):rows.length-1,0,rows.length-1),lastCard=-1;const chart=buildTripleChart(rows,'v21Perf');
+  el.innerHTML=`${scopeSelect(scope)}<div class="stack"><section class="card v21ChartCard"><div class="v21ChartHead"><div><h2>실제 · 기대 · 순납입</h2><p>실제 납입액은 그대로 두고 설정 수익률을 적용한 기대경로와 비교합니다.</p></div></div><div class="v21Legend"><span><i class="actual"></i>실제자산</span><span><i class="expected"></i>기대경로</span><span><i class="contrib"></i>누적 순납입</span></div><div class="v21Chart">${chart.svg}</div><div class="v21PointCard" id="v21PerfPoint"></div></section><details class="card v21Details"><summary>연도별 표 보기</summary><div class="v21TableWrap"><table><thead><tr><th>연도</th><th>실제</th><th>기대</th><th>순납입</th></tr></thead><tbody>${rows.slice().reverse().map(r=>`<tr><td>${r.year}</td><td>${man(r.end)}</td><td>${man(r.expected)}</td><td>${man(r.cumulative)}</td></tr>`).join('')}</tbody></table></div></details></div>`;
+  const renderCard=i=>{if(i===lastCard)return;lastCard=i;idx=i;state.ui.v21Point=i;const d=rows[i],vs=N(d.end)-N(d.expected),profit=N(d.end)-N(d.cumulative);document.getElementById('v21PerfPoint').innerHTML=`<div><span>${d.year}년 실제자산</span><strong>${man(d.end)}</strong></div><div class="v21PointGrid"><span>기대경로 <b>${man(d.expected)}</b></span><span>누적 순납입 <b>${man(d.cumulative)}</b></span><span>기대 대비 <b class="${vs>=0?'good':'bad'}">${vs>=0?'+':''}${man(vs)}</b></span><span>누적 투자손익 <b class="${profit>=0?'good':'bad'}">${profit>=0?'+':''}${man(profit)}</b></span></div>`};
+  renderCard(idx);triplePosition('v21Perf',chart,idx);
+  bindSmoothPointer('v21PerfHit',rows.length,{position:raw=>triplePosition('v21Perf',chart,raw),index:renderCard,commit:i=>{state.ui.v21Point=i;save()}});bindScope(renderPerformance21);
+}
+
+/* ---------- cashflow ---------- */
+function ledgerMonthlyRealized(scope='all'){
+  const map={};
+  for(const r of state.ledger||[]){
+    if(r?.status==='void'||!['sell','realized-adjustment'].includes(r?.type))continue;
+    const key=r.monthKey||String(r.date||'').slice(0,7),account=r.accountKey||(['pension','irp'].find(k=>r.accountId===`account-${k}`)||'');
+    if(!/^\d{4}-\d{2}$/.test(key)||scope!=='all'&&account!==scope)continue;
+    map[key]=(map[key]||0)+N(r.amount);
+  }
+  return map;
+}
+function monthlyFlow(scope='all',months=36){
+  const realized=ledgerMonthlyRealized(scope),out=[];
+  for(let offset=months-1;offset>=0;offset--){
+    const d=new Date(CURRENT_YEAR,CURRENT_MONTH-1-offset,1),y=d.getFullYear(),m=d.getMonth(),key=`${y}-${String(m+1).padStart(2,'0')}`;
+    const row=(scope==='all'?state.years?.[y]:state.accountYears?.[scope]?.[y])||{};
+    out.push({key,year:y,month:m+1,dividend:N(row.monthly?.[m]),realized:N(realized[key])});
+  }
+  return out;
 }
 function cashData(period,scope){
-  const rows=rowsFor(scope); if(period==='12m'){
-    const out=[];for(let offset=11;offset>=0;offset--){const d=new Date(CURRENT_YEAR,CURRENT_MONTH-1-offset,1),y=d.getFullYear(),m=d.getMonth(),row=(scope==='all'?state.years?.[y]:state.accountYears?.[scope]?.[y])||{};out.push({label:`${String(m+1).padStart(2,'0')}월`,full:`${y}.${String(m+1).padStart(2,'0')}`,dividend:N(row.monthly?.[m]),realized:0})}return out;
+  if(period==='12m')return monthlyFlow(scope,12).map(d=>({...d,label:`${String(d.month).padStart(2,'0')}월`,full:`${d.year}.${String(d.month).padStart(2,'0')}`}));
+  if(period==='3y'){
+    const months=monthlyFlow(scope,36),out=[];
+    for(let i=0;i<months.length;i+=3){const group=months.slice(i,i+3),last=group.at(-1),q=Math.ceil(last.month/3);out.push({label:`${String(last.year).slice(-2)} Q${q}`,full:`${last.year}년 ${q}분기`,dividend:group.reduce((s,d)=>s+d.dividend,0),realized:group.reduce((s,d)=>s+d.realized,0)})}
+    return out;
   }
-  const count=period==='3y'?3:period==='5y'?5:999;return rows.slice(-count).map(r=>({label:String(r.year),full:`${r.year}년`,dividend:N(r.dividend),realized:N(r.realized)}));
+  const rows=rowsFor(scope),count=period==='5y'?5:999;
+  return rows.slice(-count).map(r=>({label:String(r.year),full:`${r.year}년`,dividend:N(r.dividend),realized:N(r.realized)}));
 }
+function cashPeriodMeta(period){return period==='12m'?{average:'월평균',peak:'최대 월'}:period==='3y'?{average:'분기평균',peak:'최대 분기'}:{average:'연평균',peak:'최대 연도'}}
 function buildCashChart(data,id,metric){
-  const W=640,H=220,p={l:26,r:16,t:18,b:34};
-  const values=data.map(d=>N(d[metric]));
-  const min=metric==='realized'?Math.min(0,...values):0,max=Math.max(1,...values),span=max-min||1;
-  const plotW=W-p.l-p.r,step=plotW/Math.max(1,data.length),bar=Math.max(8,Math.min(26,step*.46));
-  const x=i=>p.l+step*i+step/2,y=v=>p.t+(H-p.t-p.b)*(1-(N(v)-min)/span),zero=y(0);
-  const pts=data.map((d,i)=>({x:x(i),value:y(d[metric]),raw:N(d[metric])}));
+  const W=640,H=220,p={l:58,r:16,t:18,b:34},values=data.map(d=>N(d[metric])),scale=axisScale(values,4,true),plotW=W-p.l-p.r,step=plotW/Math.max(1,data.length),bar=Math.max(7,Math.min(28,step*.48));
+  const x=i=>p.l+step*i+step/2,y=v=>p.t+(H-p.t-p.b)*(1-(N(v)-scale.min)/(scale.max-scale.min)),zero=y(0),pts=data.map((d,i)=>({x:x(i),value:y(d[metric]),raw:N(d[metric])}));
   const bars=pts.map((q,i)=>{const h=Math.abs(zero-q.value),visible=Math.max(4,h),yy=q.raw>=0?zero-visible:zero;return `<rect x="${q.x-bar/2}" y="${yy}" width="${bar}" height="${visible}" rx="${Math.min(8,bar/2)}" class="v21CashBar ${q.raw===0?'zero':''}" data-bar-index="${i}"/>`}).join('');
-  const labelStep=data.length>=10?3:1;
-  const labels=data.map((d,i)=>(i%labelStep===0||i===data.length-1)?`<text x="${x(i)}" y="${H-8}" text-anchor="middle" class="v21Axis">${d.label}</text>`:'').join('');
-  const guides=[.5,1].map(t=>{const yy=p.t+(H-p.t-p.b)*(1-t);return `<line x1="${p.l}" x2="${W-p.r}" y1="${yy}" y2="${yy}" class="v21Grid"/>`}).join('');
-  return {W,H,p,pts,svg:`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${guides}<line x1="${p.l}" x2="${W-p.r}" y1="${zero}" y2="${zero}" class="v21CashBase"/>${bars}${labels}<line id="${id}Sel" class="v21Select" y1="${p.t}" y2="${H-p.b}"/><circle id="${id}D" class="v21Dot cash" r="6"/><rect id="${id}Hit" class="v21Hit" x="${p.l}" y="${p.t}" width="${W-p.l-p.r}" height="${H-p.t-p.b}"/></svg>`};
+  const labelStep=data.length>=24?5:data.length>=12?3:1,labels=data.map((d,i)=>(i%labelStep===0||i===data.length-1)?`<text x="${x(i)}" y="${H-8}" text-anchor="middle" class="v21Axis">${d.label}</text>`:'').join('');
+  const guides=scale.ticks.map(v=>{const yy=y(v);return `<line x1="${p.l}" x2="${W-p.r}" y1="${yy}" y2="${yy}" class="v21Grid"/><text x="${p.l-7}" y="${yy+4}" text-anchor="end" class="v21Axis">${compactMoney(v)}</text>`}).join('');
+  return {pts,svg:`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${guides}<line x1="${p.l}" x2="${W-p.r}" y1="${zero}" y2="${zero}" class="v21CashBase"/>${bars}${labels}<line id="${id}Sel" class="v21Select" y1="${p.t}" y2="${H-p.b}"/><circle id="${id}D" class="v21Dot cash" r="6"/><rect id="${id}Hit" class="v21Hit" x="${p.l}" y="${p.t}" width="${W-p.l-p.r}" height="${H-p.t-p.b}"/></svg>`};
 }
+function cashPosition(id,chart,raw){const q=interpolatePoints(chart.pts,raw),sel=document.getElementById(id+'Sel'),dot=document.getElementById(id+'D');if(sel){sel.setAttribute('x1',q.x);sel.setAttribute('x2',q.x)}if(dot){dot.setAttribute('cx',q.x);dot.setAttribute('cy',q.value)}}
 function renderCashflow21(el){
-  const scope=['all','pension','irp'].includes(state.ui.analysisScope)?state.ui.analysisScope:'all',period=state.ui.v21CashPeriod||'5y',metric=state.ui.v21CashMetric==='realized'?'realized':'dividend',data=cashData(period,scope),chart=buildCashChart(data,'v21Cash',metric);let idx=clamp(Number.isFinite(Number(state.ui.v21CashPoint))?Number(state.ui.v21CashPoint):data.length-1,0,data.length-1);
-  const values=data.map(d=>N(d[metric])),total=values.reduce((a,b)=>a+b,0),nonzero=values.filter(v=>v!==0),average=data.length?total/data.length:0,peak=nonzero.length?Math.max(...nonzero.map(Math.abs)):0;
-  const metricName=metric==='dividend'?'배당·분배금':'매도 실현손익';
-  el.innerHTML=`${scopeSelect(scope)}<div class="v21Period"><button data-period="12m" class="${period==='12m'?'active':''}">12개월</button><button data-period="3y" class="${period==='3y'?'active':''}">3년</button><button data-period="5y" class="${period==='5y'?'active':''}">5년</button><button data-period="all" class="${period==='all'?'active':''}">전체</button></div><section class="card v21ChartCard v21CashCard"><div class="v21ChartHead v21CashHead"><div><h2>현금흐름</h2><p>기간과 항목을 바꿔 흐름만 빠르게 확인하세요.</p></div><div class="v21MetricToggle"><button data-cash-metric="dividend" class="${metric==='dividend'?'active':''}">분배금</button><button data-cash-metric="realized" class="${metric==='realized'?'active':''}">실현손익</button></div></div><div class="v21CashSummary"><div><span>${metricName} 합계</span><strong class="${metric==='realized'&&total<0?'bad':''}">${total>=0?'+':''}${man(total)}</strong></div><div><span>기간 평균</span><b>${man(average)}</b></div><div><span>최대 기록</span><b>${man(peak)}</b></div></div><div class="v21Chart v21CashChart">${chart.svg}</div><div class="v21PointCard v21CashPoint" id="v21CashPoint"></div></section>`;
-  const update=(i,commit)=>{idx=i;state.ui.v21CashPoint=i;const d=data[i],q=chart.pts[i],value=N(d[metric]);const sel=document.getElementById('v21CashSel');if(sel){sel.setAttribute('x1',q.x);sel.setAttribute('x2',q.x)}const dot=document.getElementById('v21CashD');if(dot){dot.setAttribute('cx',q.x);dot.setAttribute('cy',q.value)}document.querySelectorAll('[data-bar-index]').forEach((bar,n)=>bar.classList.toggle('selected',n===i));document.getElementById('v21CashPoint').innerHTML=`<div><span>${d.full}</span><strong class="${metric==='realized'&&value<0?'bad':''}">${value>=0?'+':''}${man(value)}</strong></div><div class="v21PointGrid"><span>배당·분배금 <b>${man(d.dividend)}</b></span><span>실현손익 <b class="${d.realized>=0?'good':'bad'}">${d.realized>=0?'+':''}${man(d.realized)}</b></span></div>`;if(commit)save()};
-  update(idx,false);bindPointer('v21CashHit',data.length,update);bindScope(renderCashflow21);
+  const scope=['all','pension','irp'].includes(state.ui.analysisScope)?state.ui.analysisScope:'all',period=state.ui.v21CashPeriod,metric=state.ui.v21CashMetric,data=cashData(period,scope),chart=buildCashChart(data,'v21Cash',metric),meta=cashPeriodMeta(period);
+  let idx=clamp(Number.isFinite(Number(state.ui.v21CashPoint))?Number(state.ui.v21CashPoint):data.length-1,0,data.length-1),lastCard=-1;
+  const values=data.map(d=>N(d[metric])),total=values.reduce((a,b)=>a+b,0),average=data.length?total/data.length:0,peak=values.length?values.reduce((best,v)=>Math.abs(v)>Math.abs(best)?v:best,0):0,metricName=metric==='dividend'?'배당·분배금':'매도손익';
+  el.innerHTML=`${scopeSelect(scope)}<div class="v21Period"><button data-period="12m" class="${period==='12m'?'active':''}">12개월</button><button data-period="3y" class="${period==='3y'?'active':''}">3년</button><button data-period="5y" class="${period==='5y'?'active':''}">5년</button><button data-period="all" class="${period==='all'?'active':''}">전체</button></div><section class="card v21ChartCard v21CashCard"><div class="v21ChartHead v21CashHead"><div><h2>현금흐름</h2><p>기간과 항목을 바꿔 수익 흐름을 확인하세요.</p></div><div class="v21MetricToggle"><button data-cash-metric="dividend" class="${metric==='dividend'?'active':''}">배당·분배금</button><button data-cash-metric="realized" class="${metric==='realized'?'active':''}">매도손익</button></div></div><div class="v21CashSummary"><div><span>${metricName} 합계</span><strong class="${metric==='realized'&&total<0?'bad':''}">${total>=0?'+':''}${man(total)}</strong></div><div><span>${meta.average}</span><b>${average>=0?'':'-'}${man(Math.abs(average))}</b></div><div><span>${meta.peak}</span><b class="${metric==='realized'&&peak<0?'bad':''}">${peak>=0?'+':''}${man(peak)}</b></div></div><div class="v21Chart v21CashChart">${chart.svg}</div><div class="v21PointCard v21CashPoint" id="v21CashPoint"></div><div class="v21CashNote">배당·분배금은 보유 중 받은 소득, 매도손익은 매도 시 확정된 손익입니다. 재투자는 별도 매수로 기록합니다.</div></section>`;
+  const renderCard=i=>{if(i===lastCard)return;lastCard=i;idx=i;state.ui.v21CashPoint=i;const d=data[i],value=N(d[metric]);document.querySelectorAll('[data-bar-index]').forEach((bar,n)=>bar.classList.toggle('selected',n===i));document.getElementById('v21CashPoint').innerHTML=`<div><span>${d.full}</span><strong class="${metric==='realized'&&value<0?'bad':''}">${value>=0?'+':''}${man(value)}</strong></div><div class="v21PointGrid"><span>배당·분배금 <b>${man(d.dividend)}</b></span><span>매도손익 <b class="${d.realized>=0?'good':'bad'}">${d.realized>=0?'+':''}${man(d.realized)}</b></span></div>`};
+  renderCard(idx);cashPosition('v21Cash',chart,idx);
+  bindSmoothPointer('v21CashHit',data.length,{position:raw=>cashPosition('v21Cash',chart,raw),index:renderCard,commit:i=>{state.ui.v21CashPoint=i;save()}});bindScope(renderCashflow21);
   document.querySelectorAll('[data-period]').forEach(b=>b.onclick=()=>{state.ui.v21CashPeriod=b.dataset.period;state.ui.v21CashPoint=999;renderCashflow21(el);save()});
   document.querySelectorAll('[data-cash-metric]').forEach(b=>b.onclick=()=>{state.ui.v21CashMetric=b.dataset.cashMetric;state.ui.v21CashPoint=999;renderCashflow21(el);save()});
 }
 
+/* ---------- plan check ---------- */
 function renderCompare21(el){
   const rows=expectedHistory(rowsFor('all')),latest=rows.at(-1)||{},expected=N(latest.expected),actual=N(latest.end),gap=actual-expected,con=contributionInfo(),alloc=allocationSnapshot(),ai=aiDecision();
-  const classes=[...alloc.classes].sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff)).slice(0,4);
-  el.innerHTML=`<div class="stack"><section class="card v21CompareHero"><div class="v21CompareEyebrow">계획 대비 현재</div><div class="v21CompareMain"><strong class="${gap>=0?'good':'bad'}">${gap>=0?'+':''}${man(gap)}</strong><small>실제 ${man(actual)} · 기대 ${man(expected)}</small></div><div class="v21Progress"><i style="width:${clamp(expected?actual/expected*100:0,0,100)}%"></i></div></section><section class="card v21CompareCombined"><div class="v21CompareBlock"><div class="sectionTitle">올해 납입</div><div class="v21CompareRows"><div><span>계획</span><b>${man(con.plan)}</b></div><div><span>기록</span><b>${man(con.paid)}</b></div><div><span>남음</span><b>${man(Math.max(0,con.plan-con.paid))}</b></div></div></div><div class="v21CompareDivider"></div><div class="v21CompareBlock"><div class="sectionTitle">목표 비중 차이</div><div class="v21Alloc">${classes.map(c=>`<div><span>${esc(c.name)}</span><div><i style="width:${clamp(c.current,0,100)}%"></i><em style="left:${clamp(c.target,0,100)}%"></em></div><b class="${Math.abs(c.diff)<=3?'':c.diff>0?'bad':'good'}">현재 ${c.current.toFixed(1)}% · ${c.diff>=0?'+':''}${c.diff.toFixed(1)}%p</b></div>`).join('')}</div></div></section><section class="card v21AiPanel ${ai.kind}"><div class="v21AiHead"><span>AI 판단</span><em>${esc(ai.level)}</em></div><h2>${esc(ai.title)}</h2><p>${esc(ai.reason)}</p><div class="v21AiAction"><small>권장 행동</small><b>${esc(ai.action)}</b></div><button class="btn light full" id="v21Ask">AI에게 이 판단 물어보기</button><div class="v21AiNote">월별 요약·거래·납입·비중만 사용합니다. 실시간 시세의 급등·급락은 판단하지 않습니다.</div></section></div>`;
+  const classes=[...alloc.classes].filter(c=>c.target>0||c.current>0).sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff)).slice(0,5),basisRate=N(state.settings.returnRate),monthLabel=`${CURRENT_MONTH}월까지 계획`;
+  const aiBody=ai.kind==='ok'?`<section class="card v21AiPanel compact ${ai.kind}"><div class="v21AiHead"><span>AI 코치</span><em>자동 점검</em></div><div class="v21AiCompactResult"><div><h2>${esc(ai.title)}</h2><p>${esc(ai.reason)}</p></div><b>${esc(ai.action)}</b></div><div class="v21AiCriteria"><span>기대경로</span><span>납입</span><span>목표 비중</span><span>거래 기록</span></div><button class="btn light full" id="v21Ask">이 판단을 AI에게 묻기</button></section>`:`<section class="card v21AiPanel ${ai.kind}"><div class="v21AiHead"><span>AI 코치</span><em>자동 점검 · ${esc(ai.level)}</em></div><h2>${esc(ai.title)}</h2><p>${esc(ai.reason)}</p><div class="v21AiAction"><small>권장 행동</small><b>${esc(ai.action)}</b></div><div class="v21AiCriteria"><span>기대경로</span><span>납입</span><span>목표 비중</span><span>거래 기록</span></div><button class="btn light full" id="v21Ask">이 판단을 AI에게 묻기</button></section>`;
+  el.innerHTML=`<div class="stack"><section class="card v21CompareHero"><div class="v21ChartHead"><div><h2>계획대로 가고 있나</h2><p>실제 납입액을 같은 시점에 넣고 연 ${basisRate.toFixed(1)}% 기대수익률을 적용한 경로와 비교합니다.</p></div></div><div class="v21CompareKpis"><div><span>실제자산</span><b>${man(actual)}</b></div><div><span>기대경로</span><b>${man(expected)}</b></div><div><span>차이</span><b class="${gap>=0?'good':'bad'}">${gap>=0?'+':''}${man(gap)}</b></div></div></section><section class="card v21CompareCombined"><div class="v21CompareBlock"><div class="sectionTitle">납입 계획</div><div class="v21CompareRows"><div><span>연간 계획</span><b>${man(con.plan)}</b></div><div><span>실제 기록</span><b>${man(con.paid)}</b></div><div><span>남은 금액</span><b>${man(Math.max(0,con.plan-con.paid))}</b></div></div><div class="v21PlanStatus ${con.onTrackPct>=90?'goodState':'warnState'}"><span>${monthLabel} ${man(con.planToDate)}</span><b>${con.onTrackPct>=90?'현재 일정에 맞음':`${man(Math.max(0,con.planToDate-con.paid))} 늦음`}</b></div></div><div class="v21CompareDivider"></div><div class="v21CompareBlock"><div class="sectionTitle">목표 비중과 현재 비중</div><div class="v21Alloc">${classes.map(c=>`<div><div class="v21AllocTitle"><span>${esc(c.name)}</span><b>현재 ${c.current.toFixed(1)}% / 목표 ${c.target.toFixed(0)}%</b></div><div><i style="width:${clamp(c.current,0,100)}%"></i><em style="left:${clamp(c.target,0,100)}%"></em></div><small class="${Math.abs(c.diff)<=3?'':c.diff>0?'bad':'good'}">목표보다 ${Math.abs(c.diff).toFixed(1)}%p ${c.diff>0?'높음':c.diff<0?'낮음':'동일'}</small></div>`).join('')}</div></div></section>${aiBody}<div class="v21AiNote standalone">현재 자동 점검은 앱에 저장된 데이터만 사용합니다. 자유질문형 AI는 인증된 클라우드 연결 후 활성화됩니다.</div></div>`;
   document.getElementById('v21Ask').onclick=()=>toast('AI 자유질문은 클라우드 연결 단계에서 활성화됩니다');
 }
 
 renderAnalysis=function(){
   if(!['performance','cashflow','compare'].includes(state.ui.analysisPanel))state.ui.analysisPanel='performance';
   const cls=state.ui.analysisPanel==='cashflow'?'i1':state.ui.analysisPanel==='compare'?'i2':'';
-  document.getElementById('analysis').innerHTML=`<div class="segment three v21Tabs"><i class="segmentIndicator ${cls}"></i><button data-v21-tab="performance" class="${state.ui.analysisPanel==='performance'?'active':''}">성과</button><button data-v21-tab="cashflow" class="${state.ui.analysisPanel==='cashflow'?'active':''}">현금흐름</button><button data-v21-tab="compare" class="${state.ui.analysisPanel==='compare'?'active':''}">비교</button></div><div id="analysisContent"></div>`;
-  document.querySelectorAll('[data-v21-tab]').forEach(b=>b.onclick=()=>{state.ui.analysisPanel=b.dataset.v21Tab;renderAnalysis();save()});
-  renderAnalysisContent();
+  document.getElementById('analysis').innerHTML=`<div class="segment three v21Tabs"><i class="segmentIndicator ${cls}"></i><button data-v21-tab="performance" class="${state.ui.analysisPanel==='performance'?'active':''}">성과</button><button data-v21-tab="cashflow" class="${state.ui.analysisPanel==='cashflow'?'active':''}">현금흐름</button><button data-v21-tab="compare" class="${state.ui.analysisPanel==='compare'?'active':''}">계획점검</button></div><div id="analysisContent"></div>`;
+  document.querySelectorAll('[data-v21-tab]').forEach(b=>b.onclick=()=>{state.ui.analysisPanel=b.dataset.v21Tab;renderAnalysis();save()});renderAnalysisContent();
 };
 renderAnalysisContent=function(){const el=document.getElementById('analysisContent');if(state.ui.analysisPanel==='performance')renderPerformance21(el);else if(state.ui.analysisPanel==='cashflow')renderCashflow21(el);else renderCompare21(el)};
 
+/* ---------- future ---------- */
 function futureCustom(){
-  const currentMonthly=N(state.settings.monthly.pension)+N(state.settings.monthly.irp);
-  const c=state.ui.v21Custom||{};
+  const currentMonthly=N(state.settings.monthly.pension)+N(state.settings.monthly.irp),c=state.ui.v21Custom||{};
   return {monthly:N(c.monthly)||currentMonthly,rate:Number.isFinite(Number(c.rate))?Number(c.rate):N(state.settings.returnRate),retAge:N(c.retAge)||N(state.profile.retirementAge),name:'내 가정'};
 }
 function scenarioProjection(key){
-  const age=currentAge(),custom=futureCustom(),cfg={base:{name:'기준',rate:N(state.settings.returnRate),monthly:N(state.settings.monthly.pension)+N(state.settings.monthly.irp),retAge:N(state.profile.retirementAge)},safe:{name:'보수적',rate:Math.max(0,N(state.settings.returnRate)-2),monthly:N(state.settings.monthly.pension)+N(state.settings.monthly.irp),retAge:N(state.profile.retirementAge)},custom}[key]||null;
+  const age=currentAge(),custom=futureCustom(),cfg={base:{name:'기준',rate:N(state.settings.returnRate),monthly:N(state.settings.monthly.pension)+N(state.settings.monthly.irp),retAge:N(state.profile.retirementAge)},safe:{name:'보수적',rate:Math.max(0,N(state.settings.returnRate)-2),monthly:N(state.settings.monthly.pension)+N(state.settings.monthly.irp),retAge:N(state.profile.retirementAge)},custom}[key];
   const c=cfg||cfg.base,years=Math.max(1,c.retAge-age),rm=Math.pow(1+c.rate/100,1/12)-1;let bal=totalAsset(),cum=totalPrincipal();const out=[{age,end:bal,cumulative:cum,operating:bal-cum}];
   for(let i=0;i<years;i++){for(let m=0;m<12;m++){bal*=1+rm;bal+=c.monthly}cum+=c.monthly*12;out.push({age:age+i+1,end:bal,cumulative:cum,operating:bal-cum})}return {cfg:c,data:out};
 }
 function buildFutureAreaChart(data,id){
-  const W=640,H=240,p={l:34,r:18,t:18,b:34},max=Math.max(1,...data.map(d=>N(d.end)))*1.04,floor=H-p.b;
-  const x=i=>p.l+(W-p.l-p.r)*(data.length<=1?.5:i/(data.length-1)),y=v=>p.t+(H-p.t-p.b)*(1-N(v)/max);
-  const pts=data.map((d,i)=>({x:x(i),total:y(d.end),contrib:y(d.cumulative),age:d.age}));
-  const totalPath=path(pts.map(q=>({x:q.x,y:q.total}))),contribPath=path(pts.map(q=>({x:q.x,y:q.contrib})));
-  const contributionArea=contribPath+` L ${pts.at(-1).x} ${floor} L ${pts[0].x} ${floor} Z`;
-  const growthArea=totalPath+` L ${pts.at(-1).x} ${pts.at(-1).contrib} `+pts.slice().reverse().map(q=>`L ${q.x.toFixed(1)} ${q.contrib.toFixed(1)}`).join(' ')+` Z`;
-  const ticks=[.25,.5,.75,1].map(t=>{const yy=p.t+(H-p.t-p.b)*(1-t);return `<line x1="${p.l}" x2="${W-p.r}" y1="${yy}" y2="${yy}" class="v21Grid"/><text x="${p.l}" y="${yy-6}" class="v21Axis">${man(max*t)}</text>`}).join('');
+  const W=640,H=240,p={l:58,r:18,t:18,b:34},scale=axisScale(data.flatMap(d=>[N(d.end),N(d.cumulative)]),4,true),floor=H-p.b;
+  const x=i=>p.l+(W-p.l-p.r)*(data.length<=1?.5:i/(data.length-1)),y=v=>p.t+(H-p.t-p.b)*(1-(N(v)-scale.min)/(scale.max-scale.min));
+  const pts=data.map((d,i)=>({x:x(i),total:y(d.end),contrib:y(d.cumulative),age:d.age})),totalLine=smoothPath(pts.map(q=>({x:q.x,y:q.total}))),contribLine=smoothPath(pts.map(q=>({x:q.x,y:q.contrib})));
+  const contributionArea=contribLine+` L ${pts.at(-1).x} ${floor} L ${pts[0].x} ${floor} Z`,growthArea=totalLine+` L ${pts.at(-1).x} ${pts.at(-1).contrib} `+pts.slice().reverse().map(q=>`L ${q.x.toFixed(2)} ${q.contrib.toFixed(2)}`).join(' ')+` Z`;
+  const ticks=scale.ticks.map(v=>{const yy=y(v);return `<line x1="${p.l}" x2="${W-p.r}" y1="${yy}" y2="${yy}" class="v21Grid"/><text x="${p.l-7}" y="${yy+4}" text-anchor="end" class="v21Axis">${compactMoney(v)}</text>`}).join('');
   const labelIdx=[0,Math.round((data.length-1)/2),data.length-1].filter((v,i,a)=>a.indexOf(v)===i),labels=labelIdx.map(i=>`<text x="${x(i)}" y="${H-8}" text-anchor="middle" class="v21Axis">${data[i].age}세</text>`).join('');
   const milestones=pts.filter((q,i)=>i===0||i===pts.length-1||q.age%5===0).map(q=>`<circle cx="${q.x}" cy="${q.total}" r="3.5" class="v21Milestone"/>`).join('');
-  return {W,H,p,pts,svg:`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><defs><linearGradient id="${id}Growth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f87ea" stop-opacity=".32"/><stop offset="1" stop-color="#2f87ea" stop-opacity=".08"/></linearGradient></defs>${ticks}${labels}<path d="${contributionArea}" class="v21FutureContribArea"/><path d="${growthArea}" fill="url(#${id}Growth)"/><path d="${contribPath}" class="v21Line v21Contrib"/><path d="${totalPath}" class="v21Line v21Actual"/>${milestones}<line id="${id}Sel" class="v21Select" x1="${pts[0].x}" x2="${pts[0].x}" y1="${p.t}" y2="${floor}"/><circle id="${id}A" class="v21Dot actual" r="6"/><circle id="${id}C" class="v21Dot contrib" r="5"/><rect id="${id}Hit" class="v21Hit" x="${p.l}" y="${p.t}" width="${W-p.l-p.r}" height="${H-p.t-p.b}"/></svg>`};
+  return {pts,svg:`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><defs><linearGradient id="${id}Growth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f87ea" stop-opacity=".34"/><stop offset="1" stop-color="#2f87ea" stop-opacity=".07"/></linearGradient></defs>${ticks}${labels}<path d="${contributionArea}" class="v21FutureContribArea"/><path d="${growthArea}" fill="url(#${id}Growth)"/><path d="${contribLine}" class="v21Line v21Contrib"/><path d="${totalLine}" class="v21Line v21Actual"/>${milestones}<line id="${id}Sel" class="v21Select" y1="${p.t}" y2="${floor}"/><circle id="${id}A" class="v21Dot actual" r="6"/><circle id="${id}C" class="v21Dot contrib" r="5"/><rect id="${id}Hit" class="v21Hit" x="${p.l}" y="${p.t}" width="${W-p.l-p.r}" height="${H-p.t-p.b}"/></svg>`};
 }
-function selectFuture(id,chart,i){const q=chart.pts[i];if(!q)return;const sel=document.getElementById(id+'Sel');if(sel){sel.setAttribute('x1',q.x);sel.setAttribute('x2',q.x)}const a=document.getElementById(id+'A'),c=document.getElementById(id+'C');if(a){a.setAttribute('cx',q.x);a.setAttribute('cy',q.total)}if(c){c.setAttribute('cx',q.x);c.setAttribute('cy',q.contrib)}}
+function futurePosition(id,chart,raw){const q=interpolatePoints(chart.pts,raw),sel=document.getElementById(id+'Sel'),a=document.getElementById(id+'A'),c=document.getElementById(id+'C');if(sel){sel.setAttribute('x1',q.x);sel.setAttribute('x2',q.x)}if(a){a.setAttribute('cx',q.x);a.setAttribute('cy',q.total)}if(c){c.setAttribute('cx',q.x);c.setAttribute('cy',q.contrib)}}
 function openFutureEditor(){
-  const c=futureCustom();document.getElementById('formTitle').textContent='내 가정 설정';document.getElementById('formBody').innerHTML=`<div class="sheetNotice">기본 계획을 바꾸지 않고 비교용 가정만 만듭니다.</div><div class="field"><label>월 납입액</label><input id="v21CustomMonthly" inputmode="numeric" value="${Number(c.monthly).toLocaleString('ko-KR')}"></div><div class="twoFields"><div class="field"><label>기대수익률</label><input id="v21CustomRate" type="number" step="0.1" value="${c.rate}"></div><div class="field"><label>연금 개시 나이</label><input id="v21CustomRet" type="number" value="${c.retAge}"></div></div><button class="btn primary full" id="v21CustomSave" style="margin-top:16px">비교 가정 적용</button>`;openSheet('formSheet');
+  const c=futureCustom();document.getElementById('formTitle').textContent='내 가정 설정';document.getElementById('formBody').innerHTML=`<div class="sheetNotice">기본 계획은 그대로 두고 비교용 가정만 만듭니다.</div><div class="field"><label>월 납입액</label><input id="v21CustomMonthly" inputmode="numeric" value="${Number(c.monthly).toLocaleString('ko-KR')}"></div><div class="twoFields"><div class="field"><label>기대수익률</label><input id="v21CustomRate" type="number" step="0.1" value="${c.rate}"></div><div class="field"><label>연금 개시 나이</label><input id="v21CustomRet" type="number" value="${c.retAge}"></div></div><button class="btn primary full" id="v21CustomSave" style="margin-top:16px">비교 가정 적용</button>`;openSheet('formSheet');
   const monthly=document.getElementById('v21CustomMonthly');monthly.onblur=()=>{const n=parseMoney(monthly.value);monthly.value=n?Number(n).toLocaleString('ko-KR'):''};
   document.getElementById('v21CustomSave').onclick=()=>{const m=parseMoney(monthly.value),rate=N(document.getElementById('v21CustomRate').value),ret=N(document.getElementById('v21CustomRet').value);if(m<0||rate<0||rate>20||ret<=currentAge()||ret>80){toast('가정 값을 확인하세요');return}state.ui.v21Custom={monthly:m,rate,retAge:ret};state.ui.v21Scenario='custom';state.ui.futureAge=ret;closeSheet('formSheet');renderFutureContent();save()};
 }
 renderFuture=function(){document.getElementById('future').innerHTML='<div id="futureContent"></div>';renderFutureContent()};
 renderFutureContent=function(){
-  const key=['base','safe','custom'].includes(state.ui.v21Scenario)?state.ui.v21Scenario:'base',pack=scenarioProjection(key),data=pack.data,final=data.at(-1),sim=withdrawalSim(final.end,'balanced'),monthly=presentValueMonthly(sim.startMonthly),goal=N(state.settings.goalMonthly),gap=monthly-goal;let idx=data.findIndex(d=>d.age===N(state.ui.futureAge));if(idx<0)idx=data.length-1;const chart=buildFutureAreaChart(data,'v21Future');
-  document.getElementById('futureContent').innerHTML=`<div class="v21Scenario"><button data-scenario="base" class="${key==='base'?'active':''}">기준</button><button data-scenario="safe" class="${key==='safe'?'active':''}">보수적</button><button data-scenario="custom" class="${key==='custom'?'active':''}">내 가정</button></div><div class="stack"><section class="card v21FutureSummary"><div class="v21FutureTop"><div><span>${pack.cfg.retAge}세 예상자산</span><strong>${man(final.end)}</strong></div>${key==='custom'?'<button class="v21EditChip" id="v21EditCustom">가정 편집</button>':''}</div><div class="v21FutureKpi"><span>예상 월연금 <b>${man(monthly)}</b></span><span>${gap>=0?'목표보다':'목표까지'} <b class="${gap>=0?'good':'bad'}">${man(Math.abs(gap))}${gap>=0?' 여유':' 부족'}</b></span></div><small>오늘 돈 가치 · ${state.settings.withdrawYears}년 수령 가정 · 국민연금 제외</small></section><section class="card v21ChartCard v21FutureCard"><div class="v21ChartHead"><div><h2>${pack.cfg.name} 자산 경로</h2><p>회색은 내가 넣은 돈, 파란 영역은 예상 운용수익입니다.</p></div></div><div class="v21Legend"><span><i class="actual"></i>예상자산</span><span><i class="contrib"></i>누적 순납입</span></div><div class="v21Chart v21FutureGraph">${chart.svg}</div><div class="v21PointCard" id="v21FuturePoint"></div></section><button class="btn light full" id="v21Settings">기본 계획 설정</button></div>`;
-  const update=(i,commit)=>{const d=data[i],profit=N(d.end)-N(d.cumulative);state.ui.futureAge=d.age;selectFuture('v21Future',chart,i);document.getElementById('v21FuturePoint').innerHTML=`<div><span>${d.age}세 예상자산</span><strong>${man(d.end)}</strong></div><div class="v21PointGrid"><span>누적 순납입 <b>${man(d.cumulative)}</b></span><span>예상 운용수익 <b class="${profit>=0?'good':'bad'}">${profit>=0?'+':''}${man(profit)}</b></span></div>`;if(commit)save()};update(idx,false);bindPointer('v21FutureHit',data.length,update);
+  const key=['base','safe','custom'].includes(state.ui.v21Scenario)?state.ui.v21Scenario:'base',pack=scenarioProjection(key),data=pack.data,final=data.at(-1),sim=withdrawalSim(final.end,'balanced'),monthly=presentValueMonthly(sim.startMonthly),goal=N(state.settings.goalMonthly),gap=monthly-goal;let idx=data.findIndex(d=>d.age===N(state.ui.futureAge));if(idx<0)idx=data.length-1;let lastCard=-1;const chart=buildFutureAreaChart(data,'v21Future');
+  document.getElementById('futureContent').innerHTML=`<div class="v21Scenario"><button data-scenario="base" class="${key==='base'?'active':''}">기준</button><button data-scenario="safe" class="${key==='safe'?'active':''}">보수적</button><button data-scenario="custom" class="${key==='custom'?'active':''}">내 가정</button></div><div class="stack"><section class="card v21FutureSummary"><div class="v21FutureTop"><div><span>${pack.cfg.retAge}세 예상자산</span><strong>${man(final.end)}</strong></div>${key==='custom'?'<button class="v21EditChip" id="v21EditCustom">가정 편집</button>':''}</div><div class="v21FutureKpi"><span>예상 월연금 <b>${man(monthly)}</b></span><span>${gap>=0?'목표보다':'목표까지'} <b class="${gap>=0?'good':'bad'}">${man(Math.abs(gap))}${gap>=0?' 여유':' 부족'}</b></span></div><small>오늘 돈 가치 · ${state.settings.withdrawYears}년 수령 가정 · 국민연금·세금·수수료 제외</small></section><section class="card v21ChartCard v21FutureCard"><div class="v21ChartHead"><div><h2>${pack.cfg.name} 자산 경로</h2><p>회색은 누적 순납입, 파란 영역은 예상 운용수익입니다.</p></div></div><div class="v21Legend"><span><i class="actual"></i>예상자산</span><span><i class="contrib"></i>누적 순납입</span></div><div class="v21Chart v21FutureGraph">${chart.svg}</div><div class="v21PointCard" id="v21FuturePoint"></div></section><button class="btn light full" id="v21Settings">기본 계획 설정</button></div>`;
+  const renderCard=i=>{if(i===lastCard)return;lastCard=i;idx=i;state.ui.futureAge=data[i].age;const d=data[i],profit=N(d.end)-N(d.cumulative);document.getElementById('v21FuturePoint').innerHTML=`<div><span>${d.age}세 예상자산</span><strong>${man(d.end)}</strong></div><div class="v21PointGrid"><span>누적 순납입 <b>${man(d.cumulative)}</b></span><span>예상 운용수익 <b class="${profit>=0?'good':'bad'}">${profit>=0?'+':''}${man(profit)}</b></span></div>`};
+  renderCard(idx);futurePosition('v21Future',chart,idx);
+  bindSmoothPointer('v21FutureHit',data.length,{position:raw=>futurePosition('v21Future',chart,raw),index:renderCard,commit:i=>{state.ui.futureAge=data[i].age;save()}});
   document.querySelectorAll('[data-scenario]').forEach(b=>b.onclick=()=>{if(b.dataset.scenario==='custom'&&!state.ui.v21Custom){openFutureEditor();return}state.ui.v21Scenario=b.dataset.scenario;state.ui.futureAge=scenarioProjection(b.dataset.scenario).cfg.retAge;renderFutureContent();save()});
-  const edit=document.getElementById('v21EditCustom');if(edit)edit.onclick=openFutureEditor;
+  document.getElementById('v21EditCustom')?.addEventListener('click',openFutureEditor);
   document.getElementById('v21Settings').onclick=()=>{renderSettings();openSheet('settingsSheet')};
 };
 
+/* ---------- monthly summary ---------- */
 function upsertMonthlySummary(){
-  state.extensions=state.extensions||{};
-  const list=Array.isArray(state.extensions.monthlySummaries)?state.extensions.monthlySummaries:[];
-  const alloc=allocationSnapshot();
-  const summary={
-    month:CURRENT_KEY,
-    updatedAt:new Date().toISOString(),
-    totalAsset:Math.round(totalAsset()),
-    pensionAsset:Math.round(accountAsset('pension')),
-    irpAsset:Math.round(accountAsset('irp')),
-    cumulativePrincipal:Math.round(totalPrincipal()),
-    investmentProfit:Math.round(totalAsset()-totalPrincipal()),
-    topHoldingPct:Number(alloc.topPct.toFixed(2)),
-    allocation:Object.fromEntries(alloc.classes.map(x=>[x.id,Number(x.current.toFixed(2))])),
-    dividend:Math.round(N(state.years?.[CURRENT_YEAR]?.monthly?.[CURRENT_MONTH-1]))
-  };
-  const i=list.findIndex(x=>x&&x.month===CURRENT_KEY);
-  if(i>=0)list[i]=summary;else list.push(summary);
-  list.sort((a,b)=>String(a.month).localeCompare(String(b.month)));
-  state.extensions.monthlySummaries=list;
-  return summary;
+  state.extensions=state.extensions||{};const list=Array.isArray(state.extensions.monthlySummaries)?state.extensions.monthlySummaries:[],alloc=allocationSnapshot();
+  const summary={month:CURRENT_KEY,updatedAt:new Date().toISOString(),totalAsset:Math.round(totalAsset()),pensionAsset:Math.round(accountTotal(state.accounts.pension)),irpAsset:Math.round(accountTotal(state.accounts.irp)),cumulativePrincipal:Math.round(totalPrincipal()),investmentProfit:Math.round(totalAsset()-totalPrincipal()),topHoldingPct:Number(alloc.topPct.toFixed(2)),allocation:Object.fromEntries(alloc.classes.map(x=>[x.id,Number(x.current.toFixed(2))])),dividend:Math.round(N(state.years?.[CURRENT_YEAR]?.monthly?.[CURRENT_MONTH-1]))};
+  const i=list.findIndex(x=>x&&x.month===CURRENT_KEY);if(i>=0)list[i]=summary;else list.push(summary);list.sort((a,b)=>String(a.month).localeCompare(String(b.month)));state.extensions.monthlySummaries=list;return summary;
 }
 const previousUpdateYearFromAssets=updateYearFromAssets;
-updateYearFromAssets=function(){
-  previousUpdateYearFromAssets();
-  upsertMonthlySummary();
-};
+updateYearFromAssets=function(){previousUpdateYearFromAssets();upsertMonthlySummary()};
 
+/* ---------- settings ---------- */
 const previousSettings=renderSettings;
 renderSettings=function(){
   previousSettings();
-  const ageInput=document.getElementById('setAge');if(!ageInput)return;
-  const label=ageInput.closest('.field')?.querySelector('label');if(label)label.textContent='출생연도 (연도 기준 나이 자동 계산)';
-  ageInput.value=state.profile.birthYear||CURRENT_YEAR-currentAge();ageInput.min='1900';ageInput.max=String(CURRENT_YEAR-18);
+  const body=document.getElementById('settingsBody'),error=document.getElementById('settingsError');if(!body||!error)return;
+  let selectedTheme=themeMode();
+  const section=document.createElement('div');section.className='settingsSection v21ThemeSection';section.innerHTML=`<div class="settingsTitle">화면 테마</div><div class="v21ThemePicker" role="radiogroup" aria-label="화면 테마"><button type="button" data-theme-option="auto" class="${selectedTheme==='auto'?'active':''}">자동<small>기기 설정</small></button><button type="button" data-theme-option="light" class="${selectedTheme==='light'?'active':''}">라이트<small>항상 밝게</small></button><button type="button" data-theme-option="dark" class="${selectedTheme==='dark'?'active':''}">다크<small>항상 어둡게</small></button></div></div>`;
+  error.before(section);
+  section.querySelectorAll('[data-theme-option]').forEach(b=>b.onclick=()=>{selectedTheme=b.dataset.themeOption;section.querySelectorAll('[data-theme-option]').forEach(x=>x.classList.toggle('active',x===b))});
   const btn=document.getElementById('saveSettings'),old=btn?.onclick;if(!btn||!old)return;
-  btn.onclick=()=>{const birth=Number(ageInput.value);if(!Number.isFinite(birth)||birth<1900||birth>CURRENT_YEAR-18){document.getElementById('settingsError').textContent='출생연도를 확인하세요.';return}const age=CURRENT_YEAR-birth+1;ageInput.value=String(age);old();state.profile.birthYear=birth;state.profile.age=age;state.meta.birthYearConfirmed=true;state.meta.birthYearBasisVersion='year-age-v1';state.meta.appVersion=BUILD;save();renderAll(true)};
+  btn.onclick=()=>{error.textContent='';old();if(error.textContent)return;state.settings.theme=selectedTheme;state.meta.appVersion=BUILD;applyTheme(selectedTheme);save();renderAll(true)};
 };
+
+/* ---------- final render wrapper ---------- */
 const prevAll=renderAll;
-renderAll=function(keep=false){syncAge();state.meta.appVersion=BUILD;document.title='개인연금 V2.1';prevAll(keep);syncAge();state.meta.appVersion=BUILD;renderV21Home();if(state.ui.screen==='analysis')renderAnalysis();if(state.ui.screen==='future')renderFuture();const sub=document.getElementById('headerSub');if(sub)sub.textContent=`${currentAge()}세 · ${state.profile.retirementAge}세 연금 개시 계획`;};
-window.PensionV21={build:BUILD,aiDecision,expectedHistory,scenarioProjection,upsertMonthlySummary};
-document.title='개인연금 V2.1';renderAll(true);save();
+renderAll=function(keep=false){
+  syncAge();state.meta.appVersion=BUILD;applyTheme();document.title='개인연금 V2.3';prevAll(keep);syncAge();state.meta.appVersion=BUILD;renderV21Home();if(state.ui.screen==='analysis')renderAnalysis();if(state.ui.screen==='future')renderFuture();const sub=document.getElementById('headerSub');if(sub)sub.textContent=`${currentAge()}세 · ${state.profile.retirementAge}세 연금 개시 계획`;
+};
+window.PensionV21={build:BUILD,aiDecision,expectedHistory,scenarioProjection,upsertMonthlySummary,applyTheme,compactMoney,axisScale};
+document.title='개인연금 V2.3';renderAll(true);save();
 })();

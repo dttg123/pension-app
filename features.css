@@ -1,4 +1,4 @@
-/* 개인연금 V2.1 기능 스타일 */
+/* 개인연금 V2.3 기능 스타일 */
 
 /* ===== css/70-audit-30y.css ===== */
 .auditHidden{display:none!important}.auditHistoryCard{padding:8px 14px 4px}.auditHistoryMore{margin-top:10px}.auditHistoryMore summary{list-style:none;cursor:pointer;padding:12px 4px;font-size:12px;font-weight:900;color:var(--blue)}.auditHistoryMore summary::-webkit-details-marker{display:none}.auditHistoryMore summary:after{content:'  ▾'}.auditHistoryMore[open] summary:after{content:'  ▴'}

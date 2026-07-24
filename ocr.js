@@ -1,7 +1,7 @@
 /* ===== js/40-release-polish.js ===== */
 (()=>{
 'use strict';
-const RELEASE_VERSION='2.1.0';
+const RELEASE_VERSION='2.3.0';
 state.meta=state.meta||{};state.meta.appVersion=RELEASE_VERSION;
 
 /* ---------- clean chart interaction ---------- */
@@ -83,7 +83,7 @@ function readOcrRowsFromDom(){return [...document.querySelectorAll('.ocrRow')].m
 function applyReleaseSnapshot(key,rows,total){
   const a=state.accounts[key],wasEmpty=!a.holdings.length&&!Number(a.principal);archiveMissingHoldings(key,rows,'snapshot-ocr-replaced');const old=Object.fromEntries(a.holdings.map(h=>[h.name,h])),sum=rows.reduce((s,r)=>s+r.value,0);
   a.holdings=rows.map(r=>{const prev=old[r.name]||{},cls=r.classId||prev.class||state.settings.assetClasses[0].id;return prepareHolding(key,{...prev,name:r.name,qty:r.qty,value:r.value,cost:r.cost,class:cls,dividend:prev.dividend||0,realized:prev.realized||0,risk:key==='irp'?(prev.risk??((state.settings.assetClasses.find(c=>c.id===cls)?.riskWeight||0)>=70)):undefined,riskSource:key==='irp'?(prev.riskSource||'estimated'):undefined},prev)});
-  a.cash=Math.max(0,(total||sum)-sum);if(wasEmpty)a.principal=rows.reduce((s,r)=>s+r.cost,0)+a.cash;state.ui.accountView=key;state.lastUpdated=`${CURRENT_YEAR}.${String(CURRENT_MONTH).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;updateYearFromAssets();save();closeSheet('formSheet');renderAll();toast(`${a.name} ${rows.length}개 종목을 반영했어요`);
+  a.cash=Math.max(0,(total||sum)-sum);if(wasEmpty)a.principal=rows.reduce((s,r)=>s+r.cost,0)+a.cash;state.ui.accountView=key;state.lastUpdated=localDisplayDate(new Date());updateYearFromAssets();save();closeSheet('formSheet');renderAll();toast(`${a.name} ${rows.length}개 종목을 반영했어요`);
 }
 function setOcrProgress(p,label,message,error=false){const box=document.getElementById('ocrProgress');if(!box)return;box.classList.add('open');box.classList.toggle('ocrError',error);box.querySelector('i').style.width=`${clamp(p,0,100)}%`;box.querySelector('[data-progress-label]').textContent=label;box.querySelector('[data-progress-pct]').textContent=error?'확인 필요':`${Math.round(p)}%`;box.querySelector('.ocrMessage').textContent=message}
 function updateOcrSummary(){

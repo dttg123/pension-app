@@ -1,4 +1,4 @@
-/* 개인연금 V2.1 · polished mobile finish */
+/* 개인연금 V2.3 · polished mobile finish */
 :root{
   --bg:#f5f7fb;
   --surface:#fff;
@@ -33,7 +33,7 @@ main{padding:8px 16px 34px}.stack{gap:14px}.card{border-color:rgba(226,232,240,.
 .v21ExpandLabel{font-style:normal;font-size:11px;font-weight:900;color:var(--blue);background:var(--blueSoft);padding:7px 10px;border-radius:999px;margin-top:3px}
 .v21Account{width:100%;border:0;border-top:1px solid var(--line);background:#fff;padding:17px 20px;display:grid;grid-template-columns:1fr auto 18px;align-items:center;text-align:left;color:inherit;transition:background .16s ease,transform .16s ease}
 .v21Account:active{background:#f8fafc;transform:scale(.995)}.v21Account span{display:grid;gap:4px}.v21Account span:nth-child(2){text-align:right}.v21Account b{font-size:15px}.v21Account small{font-size:11px;color:var(--muted)}.v21Account i{font-style:normal;font-size:22px;color:#aab3c1;text-align:right}
-.v21Exact{padding:11px 18px 13px;text-align:center;color:var(--muted);font-size:10px;background:#fbfcfe}
+.v21Exact{padding:11px 18px 13px;text-align:center;color:var(--muted);font-size:10px;background:var(--surface2)}
 .v21HomeGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.v21Mini{border:0;text-align:left;padding:19px;display:flex;flex-direction:column;gap:8px;color:inherit;min-height:145px}.v21Mini strong{font-size:25px;letter-spacing:-1.1px}.v21Mini small{color:var(--muted);line-height:1.45;font-size:11px}
 .v21Progress{height:7px;border-radius:99px;background:#e9edf4;overflow:hidden}.v21Progress i{display:block;height:100%;background:linear-gradient(90deg,#1673df,#6cb0f5);border-radius:inherit}
 .v21AiCompact,.v21AiAlert{width:100%;border:0;border-radius:20px;text-align:left;color:inherit}.v21AiCompact{padding:17px 19px;background:#fff;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line)}
@@ -70,3 +70,51 @@ main{padding:8px 16px 34px}.stack{gap:14px}.card{border-color:rgba(226,232,240,.
 }
 @media(max-width:350px){.v21HomeGrid{grid-template-columns:1fr}.v21CompareRows{grid-template-columns:1fr}.v21FutureKpi{grid-template-columns:1fr}.v21CashSummary{grid-template-columns:1fr 1fr}.v21CashSummary>div:first-child{grid-column:1/-1}}
 body[data-screen="home"] .fab{display:none!important}.v21Home{padding-bottom:24px}.screen{padding-bottom:25px}
+
+/* ===== V2.3.0 final quality pass ===== */
+html{color-scheme:light}html[data-theme="dark"]{color-scheme:dark}
+.v21HeroFixed{padding:0;overflow:hidden}.v21HeroFixed .v21HeroMain{cursor:default}.v21AccountLink{border:0;border-radius:999px;background:var(--blueSoft);color:var(--blue);font-size:10px;font-weight:900;padding:7px 9px;margin-top:8px}.v21Exact{padding:10px 22px 14px;color:var(--muted);font-size:9.5px;border-top:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v21Chart svg *{vector-effect:non-scaling-stroke}.v21Hit{touch-action:pan-y;cursor:ew-resize}.v21Chart{user-select:none;-webkit-user-select:none}.v21Select,.v21Dot{will-change:transform}.v21Line{transition:opacity .15s ease}.v21Axis{font-size:11px;fill:#737f90}.v21TableWrap{max-height:430px;overscroll-behavior:contain}.v21TableWrap thead th{position:sticky;top:0;background:var(--surface);z-index:2}
+.v21MetricToggle{max-width:220px}.v21MetricToggle button{white-space:nowrap}.v21CashNote{margin:10px 2px 0;color:var(--muted);font-size:10px;line-height:1.55}.v21CashSummary strong,.v21CashSummary b{font-variant-numeric:tabular-nums}
+.v21CompareKpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:17px}.v21CompareKpis>div{display:grid;gap:6px;background:var(--surface2);border-radius:14px;padding:13px;min-width:0}.v21CompareKpis span{color:var(--muted);font-size:9.5px}.v21CompareKpis b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.v21PlanStatus{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px;padding:10px 12px;border-radius:12px;background:var(--surface2);font-size:10px}.v21PlanStatus span{color:var(--sub)}.v21PlanStatus.goodState b{color:var(--green)}.v21PlanStatus.warnState b{color:var(--amber)}
+.v21AllocTitle{display:flex!important;align-items:center;justify-content:space-between;gap:12px;height:auto!important;background:none!important}.v21AllocTitle b{font-size:10px;color:var(--sub);font-weight:800}.v21Alloc>div>small{font-size:10px;font-weight:800}.v21AiPanel.compact{padding:18px}.v21AiCompactResult{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}.v21AiCompactResult h2{font-size:18px;margin:10px 0 4px}.v21AiCompactResult p{font-size:11px}.v21AiCompactResult>b{color:var(--blue);font-size:11px;white-space:nowrap}.v21AiCriteria{display:flex;flex-wrap:wrap;gap:6px;margin:13px 0}.v21AiCriteria span{padding:6px 8px;border-radius:999px;background:var(--surface2);color:var(--sub);font-size:9px;font-weight:800}.v21AiNote.standalone{margin:0 3px 4px;text-align:center}.v21CompareHero .v21ChartHead p{max-width:520px}
+.v21FutureSummary>small{font-size:9.5px}.v21FutureGraph{height:235px}.v21Milestone{fill:var(--surface);stroke:var(--blue)}
+.v21ThemeSection{margin-bottom:4px}.v21ThemePicker{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:5px;border-radius:17px;background:var(--surface2)}.v21ThemePicker button{border:0;background:transparent;color:var(--sub);border-radius:13px;padding:10px 5px;font-weight:900;font-size:12px;display:grid;gap:3px}.v21ThemePicker button small{font-size:8.5px;color:var(--muted);font-weight:700}.v21ThemePicker button.active{background:var(--surface);color:var(--text);box-shadow:var(--shadowSm)}.v21ThemePicker button.active small{color:var(--blue)}
+body.charting{overflow:hidden;touch-action:none}
+
+/* Dark theme — variables first, then hard-coded legacy surfaces */
+html[data-theme="dark"]{
+  --bg:#0d1421;--surface:#151f2f;--surface2:#1b2738;--text:#f1f5fb;--sub:#a7b3c4;--muted:#7e8ca0;--line:#263449;
+  --blue:#5aa8ff;--blue2:#2d82e9;--blueSoft:#172f4f;--green:#41c99a;--greenSoft:#12382e;--red:#ff7180;--redSoft:#431f29;--amber:#f3bd61;--amberSoft:#3b2e18;
+  --shadow:0 14px 34px rgba(0,0,0,.22);--shadowSm:0 6px 17px rgba(0,0,0,.2)
+}
+html[data-theme="dark"] body{background:radial-gradient(circle at 90% -5%,rgba(58,139,234,.13),transparent 28rem),var(--bg)}
+html[data-theme="dark"] .topbar{background:rgba(13,20,33,.88);border-color:rgba(38,52,73,.8)}
+html[data-theme="dark"] .card,html[data-theme="dark"] .sheet,html[data-theme="dark"] .nav,html[data-theme="dark"] .iconBtn,html[data-theme="dark"] .v21AiCompact,html[data-theme="dark"] .holdingBtn,html[data-theme="dark"] .r5AccountRow,html[data-theme="dark"] .advancedHistory{background:var(--surface);border-color:var(--line)}
+html[data-theme="dark"] .nav{box-shadow:0 -8px 28px rgba(0,0,0,.24)}
+html[data-theme="dark"] .overlay{background:rgba(4,8,14,.62)}
+html[data-theme="dark"] input,html[data-theme="dark"] select,html[data-theme="dark"] textarea{background:#101a29!important;color:var(--text)!important;border-color:var(--line)!important}
+html[data-theme="dark"] input::placeholder,html[data-theme="dark"] textarea::placeholder{color:#6f7d91}
+html[data-theme="dark"] .segment,html[data-theme="dark"] .v21Period,html[data-theme="dark"] .v21Scenario,html[data-theme="dark"] .v21MetricToggle{background:#111c2c}
+html[data-theme="dark"] .segmentIndicator,html[data-theme="dark"] .v21Period button.active,html[data-theme="dark"] .v21Scenario button.active,html[data-theme="dark"] .v21MetricToggle button.active,html[data-theme="dark"] .v21Scope select{background:var(--surface);color:var(--text);border-color:var(--line)}
+html[data-theme="dark"] .v21Progress,html[data-theme="dark"] .progress,html[data-theme="dark"] .v21Alloc>div>div{background:#26354a}
+html[data-theme="dark"] .v21PointCard,html[data-theme="dark"] .v21CashSummary>div,html[data-theme="dark"] .v21CompareKpis>div,html[data-theme="dark"] .v21CompareRows div,html[data-theme="dark"] .v21FutureKpi span,html[data-theme="dark"] .v21PlanStatus,html[data-theme="dark"] .metric,html[data-theme="dark"] .miniMetric,html[data-theme="dark"] .settingsInfo,html[data-theme="dark"] .previewItem{background:var(--surface2)}
+html[data-theme="dark"] .v21Quick button,html[data-theme="dark"] .btn.light,html[data-theme="dark"] .v21AccountLink,html[data-theme="dark"] .v21EditChip{background:var(--blueSoft);color:var(--blue);border-color:#25466d}
+html[data-theme="dark"] .v21Grid{stroke:#26354a}.v21Axis{transition:fill .15s ease}html[data-theme="dark"] .v21Axis{fill:#8997aa}html[data-theme="dark"] .v21CashBase{stroke:#3a4a60}
+html[data-theme="dark"] .v21Contrib{stroke:#7d8ca0}html[data-theme="dark"] .v21CashBar.zero{fill:#33445a}html[data-theme="dark"] .v21FutureContribArea{fill:#536176;opacity:.4}
+html[data-theme="dark"] .v21AiAlert{background:#2d2619;border-color:#514427}html[data-theme="dark"] .v21AiAlert.hot,html[data-theme="dark"] .v21AiAlert.concentration{background:#341f26;border-color:#57303c}html[data-theme="dark"] .v21AiAlert.cold{background:#172b44;border-color:#24486f}html[data-theme="dark"] .v21AiAlert.income{background:#302919;border-color:#51462b}
+html[data-theme="dark"] .v21AiPanel{background:var(--surface)}html[data-theme="dark"] .v21AiCriteria span{background:var(--surface2)}
+html[data-theme="dark"] .sheetNotice{background:#172b44;color:#b9d7f8;border-color:#274767}html[data-theme="dark"] .brief{background:linear-gradient(135deg,#152944,#142033);border-color:#24456d}html[data-theme="dark"] .brief p{color:#b7c6d9}
+html[data-theme="dark"] .accountLink:active,html[data-theme="dark"] .holdingDetail.open{background:#1a293c}html[data-theme="dark"] .holdingRow,html[data-theme="dark"] .r5AccountRow{border-color:var(--line)}
+html[data-theme="dark"] .photoViewer,html[data-theme="dark"] .photoViewerHead{background:#0c1320;color:var(--text)}
+html[data-theme="dark"] .toast{background:#eef4ff;color:#121a28}
+html[data-theme="dark"] .v21TableWrap thead th{background:var(--surface)}
+
+@media(max-width:390px){
+  .v21CompareKpis{grid-template-columns:1fr 1fr}.v21CompareKpis>div:last-child{grid-column:1/-1}.v21AiCompactResult{grid-template-columns:1fr}.v21AiCompactResult>b{white-space:normal}.v21MetricToggle button{padding-left:6px;padding-right:6px}.v21Exact{font-size:8.7px}.v21FutureGraph{height:220px}
+}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation-duration:.001ms!important;transition-duration:.001ms!important}.v21Line,.v21CashBar{transition:none!important}}
+
+/* V2.3 chart clipping: keep axis labels inside the chart instead of bleeding into headings. */
+.v21Chart{margin-top:10px;overflow:hidden;border-radius:10px}
+.v21Chart svg{overflow:hidden}

@@ -1,9 +1,9 @@
-/* 개인연금 V2.1 최종 셸: 버전 고정, 진단, 저장 후처리, PWA 갱신 */
+/* 개인연금 V2.3 최종 셸: 버전 고정, 진단, 저장 후처리, PWA 갱신 */
 (()=>{
 'use strict';
-const VERSION='2.1.0';
-const BUILD='2026-07-24-schema6-ux5-expert';
-const ARCHITECTURE='modular-flat-v2-1-maintainable-18';
+const VERSION='2.3.0';
+const BUILD='2026-07-25-v23-final-qa';
+const ARCHITECTURE='modular-flat-v2-3-maintainable-18';
 const MODULE_FILES=[
   'base.css','components.css','features.css','v21.css',
   'core.js','ui.js','analysis.js','ocr.js','backup.js',
@@ -24,10 +24,10 @@ function forceVersion({persist=true}={}){
   }
 }
 function fixVersionUI(){
-  document.title='개인연금 V2.1';
-  document.querySelectorAll('.v0Badge,.v1Badge').forEach(b=>{b.textContent='V2.1';b.classList.add('v12Version')});
+  document.title='개인연금 V2.3';
+  document.querySelectorAll('.v0Badge,.v1Badge').forEach(b=>{b.textContent='V2.3';b.classList.add('v12Version')});
   const notice=document.querySelector('#settingsBody .sheetNotice');
-  if(notice)notice.textContent='저장 버튼을 눌러야 반영됩니다. 앱 V2.1.0 · 데이터 구조 6 · 사진 원본 저장 안 함';
+  if(notice)notice.textContent='저장 버튼을 눌러야 반영됩니다. 앱 V2.3.0 · 데이터 구조 6 · 사진 원본 저장 안 함';
 }
 function moduleAudit(){
   const resources=performance.getEntriesByType('resource').map(x=>{
@@ -61,7 +61,7 @@ function health(){
   };
 }
 
-/* 하위 모듈이 과거 버전 문자열을 다시 쓰더라도 최종 저장값은 항상 2.1.0으로 고정한다. */
+/* 하위 모듈이 과거 버전 문자열을 다시 쓰더라도 최종 저장값은 항상 2.3.0으로 고정한다. */
 if(typeof save==='function'){
   const previousSave=save;
   save=function(){
@@ -189,7 +189,7 @@ function addHistoryLedger(type,year,amount,{accountKey='',assetName=''}={}){
   state.ledger.push({
     id:historyUid(type),type,date:`${year}-12-28T12:00:00.000Z`,monthKey:`${year}-12`,year,
     accountKey,accountId:accountKey?`account-${accountKey}`:'',assetName,amount,
-    source:HISTORY_SOURCE,synthetic:true,note:'V2.1 과거 연도 입력 원장 조정',createdAt:new Date().toISOString(),ledgerSchemaVersion:2
+    source:HISTORY_SOURCE,synthetic:true,note:'V2.3 과거 연도 입력 원장 조정',createdAt:new Date().toISOString(),ledgerSchemaVersion:2
   });
 }
 function reconcileHistoryLedger(){
@@ -340,7 +340,7 @@ if('serviceWorker' in navigator&&location.protocol!=='file:'){
 /* ===== V2.0 RC3 UX consolidation: analysis, diagnosis, contribution and profile ===== */
 (()=>{
 'use strict';
-const UX_BUILD='2.1.0';
+const UX_BUILD='2.3.0';
 const UX_LABEL={all:'전체',pension:'연금저축',irp:'IRP'};
 const uxN=v=>Number.isFinite(Number(v))?Number(v):0;
 const uxMoney=v=>Math.max(0,parseMoney(v));
@@ -425,7 +425,7 @@ window.PensionUX={build:UX_BUILD,currentAge:()=>{uxEnsureProfile();return state.
 /* ===== V2.0 RC5 expert refinement: outcome-first pension experience ===== */
 (()=>{
 'use strict';
-const RC5_BUILD='2.1.0';
+const RC5_BUILD='2.3.0';
 const R5_LABEL={all:'전체',pension:'연금저축',irp:'IRP'};
 const r5n=v=>Number.isFinite(Number(v))?Number(v):0;
 const r5Scope=()=>['all','pension','irp'].includes(state.ui.analysisScope)?state.ui.analysisScope:'all';
