@@ -1,8 +1,8 @@
-/* 개인연금 V2.0 코어 및 UI */
+/* 개인연금 V2.1 코어 및 UI */
 
 /* ===== js/00-core.js ===== */
 'use strict';
-const APP_VERSION='2.0.0',SCHEMA_VERSION=6,STORAGE='pension-v1',LEGACY_KEYS=['pension-v8-r4b','pension-v8-r4','pension-v8-r2','pension-v8-final'];
+const APP_VERSION='2.1.0',SCHEMA_VERSION=6,STORAGE='pension-v1',LEGACY_KEYS=['pension-v8-r4b','pension-v8-r4','pension-v8-r2','pension-v8-final'];
 const DB_NAME='asset-os-local',DB_STORE='apps',DB_KEY='pension-v1',LEGACY_DB_KEY='pension-r4b';
 const RETURN_PATTERN=[6.8,-7.5,12.4,8.1,4.3,15.2,-11.8,9.7,6.1,13.4,2.5,-5.6,10.8,7.3,4.9,16.1,-14.2,8.7,5.5,11.6,3.2,-6.9,12.9,7.8,5.1,9.4,-10.5,13.7,6.6,8.2];
 const WITHDRAW_PATTERN=[4.5,-12,10,7,3,8,-5,6,4,9,2,-8,7,5,3,11,-10,6,4,8,2,-6,7,5,3,9,-7,6,4,5];
@@ -20,7 +20,7 @@ const ACCOUNT_CONTRACT={pension:{id:'account-pension',accountType:'pension-savin
 const validIso=(value,fallback=isoNow())=>{const t=Date.parse(value||'');return Number.isNaN(t)?fallback:new Date(t).toISOString()};
 const plainObject=value=>value&&typeof value==='object'&&!Array.isArray(value)?value:{};
 const sample={
- schemaVersion:6,appId:'asset-os-pension',profile:{birthYear:CURRENT_YEAR-32,age:32,retirementAge:65},
+ schemaVersion:6,appId:'asset-os-pension',profile:{birthYear:CURRENT_YEAR-31,age:32,retirementAge:65},
  settings:{monthly:{pension:500000,irp:250000},goalMonthly:2500000,returnRate:6,inflation:2,withdrawYears:30,withdrawReturn:3.5,
  assetClasses:[{id:'growth',name:'성장주',target:55,riskWeight:100},{id:'dividend',name:'배당주',target:15,riskWeight:85},{id:'bond',name:'채권',target:20,riskWeight:15},{id:'gold',name:'금',target:8,riskWeight:45},{id:'cash',name:'현금',target:2,riskWeight:0}]},
  ui:{screen:'home',accountView:'pension',analysisPanel:'performance',futurePanel:'accum',strategy:'balanced',futureAge:65,performanceIndex:2,homeExpanded:false},
@@ -72,7 +72,7 @@ function coreEnsureSchema6(v){
  while(version<SCHEMA_VERSION){const from=version,step=CORE_MIGRATIONS[from];if(!step)throw new Error(`변환 경로가 없는 데이터 구조입니다: ${from}`);step(v);version=from+1;v.schemaVersion=version;appliedMigrations.push({from,to:version,appliedAt:isoNow(),reason:from===5?'stable-identity-and-archive-contract':'legacy-step-migration'})}
  v.schemaVersion=SCHEMA_VERSION;v.dataId=String(v.dataId||entityUid('pension-data'));
  v.profile={...clone(sample.profile),...plainObject(v.profile)};
- const legacyAge=clamp(Number(v.profile.age)||32,18,80);let birthYear=Number(v.profile.birthYear);if(!Number.isInteger(birthYear)||birthYear<CURRENT_YEAR-100||birthYear>CURRENT_YEAR-10)birthYear=CURRENT_YEAR-legacyAge;v.profile.birthYear=birthYear;v.profile.age=clamp(CURRENT_YEAR-birthYear,0,100);
+ const legacyAge=clamp(Number(v.profile.age)||32,18,80);let birthYear=Number(v.profile.birthYear);if(!Number.isInteger(birthYear)||birthYear<CURRENT_YEAR-100||birthYear>CURRENT_YEAR-10)birthYear=CURRENT_YEAR-legacyAge+1;v.profile.birthYear=birthYear;v.profile.age=clamp(CURRENT_YEAR-birthYear+1,0,100);
  v.settings={...clone(sample.settings),...plainObject(v.settings)};v.settings.monthly={...sample.settings.monthly,...plainObject(v.settings.monthly)};
  if(!Array.isArray(v.settings.assetClasses)||!v.settings.assetClasses.length)v.settings.assetClasses=clone(sample.settings.assetClasses);
  v.settings.assetClasses=v.settings.assetClasses.map((c,i)=>({id:c.id||`custom-${i}`,name:c.name||`자산군 ${i+1}`,target:Number(c.target)||0,riskWeight:c.riskWeight==null?50:Number(c.riskWeight),extensions:plainObject(c.extensions)}));

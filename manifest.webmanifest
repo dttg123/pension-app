@@ -1,16 +1,25 @@
 {
   "name": "개인연금",
   "short_name": "개인연금",
-  "description": "연금저축과 IRP를 장기간 관리하는 개인연금 웹앱",
-  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f4f7fb",
   "theme_color": "#f4f7fb",
   "lang": "ko-KR",
+  "description": "연금저축과 IRP를 관리하는 개인연금 V2.1",
+  "id": "./",
   "orientation": "portrait-primary",
+  "categories": [
+    "finance",
+    "productivity"
+  ],
   "icons": [
-    {"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
   ]
 }
