@@ -1,7 +1,7 @@
-/* 개인연금 V2.5 · 현금흐름 정렬·그래프 터치 안정화 레이어 */
+/* 개인연금 V2.6 · 그래프/연도 전환 최종 안정화 레이어 */
 (()=>{
 'use strict';
-const BUILD='2.5.0';
+const BUILD='2.6.0';
 const N=v=>Number.isFinite(Number(v))?Number(v):0;
 const CHART=window.PensionCharts;
 if(!CHART)throw new Error('차트 엔진을 불러오지 못했습니다.');
@@ -61,12 +61,28 @@ closeSheet=function(){
 window.addEventListener('pagehide',()=>clearInterval(rolloverTimer),{once:true});
 
 syncAge();applyTheme();
-document.title='개인연금 V2.5';
-state.meta.appVersion=BUILD;state.meta.uxBuild='v2.5-cashflow-touch-final';
+document.title='개인연금 V2.6';
+state.meta.appVersion=BUILD;state.meta.uxBuild='v2.6-graph-rollover-final';
 if(!['performance','cashflow','compare'].includes(state.ui.analysisPanel))state.ui.analysisPanel='performance';
-state.ui.v21CashPeriod=['12m','3y','5y','all'].includes(state.ui.v21CashPeriod)?state.ui.v21CashPeriod:'5y';
+if(state.ui.v21CashPeriod==='12m')state.ui.v21CashPeriod='1y';
+state.ui.v21CashPeriod=['1y','3y','5y','all'].includes(state.ui.v21CashPeriod)?state.ui.v21CashPeriod:'5y';
 state.ui.v21CashMetric=['dividend','realized'].includes(state.ui.v21CashMetric)?state.ui.v21CashMetric:'dividend';
 state.ui.v21Scenario=['base','safe','custom'].includes(state.ui.v21Scenario)?state.ui.v21Scenario:'base';
+
+/* Older annual-only data was once placed in December during migration. In the current year,
+   a future-month synthetic cash-flow is impossible, so move only those synthetic legacy rows
+   to the current month. Real user-entered records are never changed. */
+function repairCurrentYearSyntheticCashflow(){
+  let changed=false;
+  for(const row of state.ledger||[]){
+    const month=Number(String(row.monthKey||row.date||'').slice(5,7)),year=Number(String(row.monthKey||row.date||'').slice(0,4));
+    const legacy=row.synthetic&&row.source==='v1.1-legacy-adjustment'&&['dividend-adjustment','dividend-account-allocation'].includes(row.type);
+    if(!legacy||year!==CURRENT_YEAR||!Number.isFinite(month)||month<=CURRENT_MONTH)continue;
+    row.monthKey=CURRENT_KEY;row.year=CURRENT_YEAR;row.date=`${CURRENT_KEY}-28T12:00:00.000Z`;row.updatedAt=new Date().toISOString();changed=true;
+  }
+  if(changed){state.meta.syntheticCashflowRepair='v2.6-current-month';window.PensionV11Ledger?.rebuild?.()}
+}
+repairCurrentYearSyntheticCashflow();
 
 /* ---------- data helpers ---------- */
 const rowsFor=(scope='all')=>{
@@ -185,44 +201,54 @@ function ledgerMonthlyRealized(scope='all'){
   }
   return map;
 }
-function monthlyFlow(scope='all',months=36){
-  const realized=ledgerMonthlyRealized(scope),out=[];
-  for(let offset=months-1;offset>=0;offset--){
-    const d=new Date(CURRENT_YEAR,CURRENT_MONTH-1-offset,1),y=d.getFullYear(),m=d.getMonth(),key=`${y}-${String(m+1).padStart(2,'0')}`;
-    const row=(scope==='all'?state.years?.[y]:state.accountYears?.[scope]?.[y])||{};
-    out.push({key,year:y,month:m+1,dividend:N(row.monthly?.[m]),realized:N(realized[key])});
+function rowForYear(scope,year){return (scope==='all'?state.years?.[year]:state.accountYears?.[scope]?.[year])||{}}
+function calendarYearMonths(scope='all',year=CURRENT_YEAR){
+  const realized=ledgerMonthlyRealized(scope),row=rowForYear(scope,year),monthly=Array.isArray(row.monthly)?row.monthly:[];
+  return Array.from({length:12},(_,i)=>{const month=i+1,key=`${year}-${String(month).padStart(2,'0')}`;return {key,year,month,label:`${month}월`,full:`${year}.${String(month).padStart(2,'0')}`,dividend:N(monthly[i]),realized:N(realized[key])}})
+}
+function calendarYearRows(scope='all',count=3){
+  const realized=ledgerMonthlyRealized(scope),first=CURRENT_YEAR-count+1,out=[];
+  for(let year=first;year<=CURRENT_YEAR;year++){
+    const row=rowForYear(scope,year);let realizedValue=N(row.realized);
+    const fromLedger=Object.entries(realized).filter(([key])=>key.startsWith(`${year}-`)).reduce((sum,[,value])=>sum+N(value),0);
+    if(fromLedger||!realizedValue)realizedValue=fromLedger;
+    out.push({label:String(year),full:`${year}년`,year,dividend:N(row.dividend),realized:realizedValue});
   }
   return out;
 }
-function cashData(period,scope){
-  if(period==='12m')return monthlyFlow(scope,12).map(d=>({...d,label:`${String(d.month).padStart(2,'0')}월`,full:`${d.year}.${String(d.month).padStart(2,'0')}`}));
-  if(period==='3y'){
-    const months=monthlyFlow(scope,36),out=[];
-    for(let i=0;i<months.length;i+=3){const group=months.slice(i,i+3),last=group.at(-1),q=Math.ceil(last.month/3);out.push({label:`${String(last.year).slice(-2)} Q${q}`,full:`${last.year}년 ${q}분기`,dividend:group.reduce((s,d)=>s+d.dividend,0),realized:group.reduce((s,d)=>s+d.realized,0)})}
-    return out;
-  }
-  const rows=rowsFor(scope),count=period==='5y'?5:999;
-  return rows.slice(-count).map(r=>({label:String(r.year),full:`${r.year}년`,dividend:N(r.dividend),realized:N(r.realized)}));
+function allCalendarYears(scope='all'){
+  const rowYears=Object.keys(scope==='all'?(state.years||{}):(state.accountYears?.[scope]||{})).map(Number).filter(Number.isFinite),ledgerYears=Object.keys(ledgerMonthlyRealized(scope)).map(k=>Number(k.slice(0,4))).filter(Number.isFinite),first=Math.min(CURRENT_YEAR,...rowYears,...ledgerYears);
+  return calendarYearRows(scope,CURRENT_YEAR-first+1);
 }
-function cashPeriodMeta(period){return period==='12m'?{average:'월평균',peak:'최대 월'}:period==='3y'?{average:'분기평균',peak:'최대 분기'}:{average:'연평균',peak:'최대 연도'}}
+function cashData(period,scope){
+  if(period==='1y')return calendarYearMonths(scope,CURRENT_YEAR);
+  if(period==='3y')return calendarYearRows(scope,3);
+  if(period==='5y')return calendarYearRows(scope,5);
+  return allCalendarYears(scope);
+}
+function cashPeriodMeta(period){return period==='1y'?{average:'월평균',peak:'최대 월'}:{average:'연평균',peak:'최대 연도'}}
 function buildCashChart(data,id,metric){
-  const W=640,H=220,p={l:58,r:16,t:18,b:34},values=data.map(d=>N(d[metric])),scale=axisScale(values,4,true),plotW=W-p.l-p.r,step=plotW/Math.max(1,data.length),bar=Math.max(7,Math.min(28,step*.48));
-  const x=i=>p.l+step*(i+.5),y=v=>p.t+(H-p.t-p.b)*(1-(N(v)-scale.min)/(scale.max-scale.min)),zero=y(0),pts=data.map((d,i)=>({x:x(i),value:y(d[metric]),raw:N(d[metric])}));
+  const W=640,H=220,p={l:58,r:18,t:18,b:36},values=data.map(d=>N(d[metric])),scale=axisScale(values,4,true),plotW=W-p.l-p.r,slot=plotW/Math.max(1,data.length),bar=Math.max(10,Math.min(periodBarWidth(data.length),slot*.46));
+  const x=i=>p.l+slot*(i+.5),y=v=>p.t+(H-p.t-p.b)*(1-(N(v)-scale.min)/(scale.max-scale.min)),zero=y(0),pts=data.map((d,i)=>({x:x(i),value:y(d[metric]),raw:N(d[metric])}));
   const bars=pts.map((q,i)=>{
     if(q.raw===0)return '';
-    const h=Math.abs(zero-q.value),visible=Math.max(1.5,h),yy=q.raw>0?zero-visible:zero,hitWidth=Math.max(bar+12,Math.min(44,step*.72));
+    const h=Math.abs(zero-q.value),visible=Math.max(2,h),yy=q.raw>0?zero-visible:zero,hitWidth=Math.max(bar+14,Math.min(slot*.82,64));
     return `<rect x="${q.x-bar/2}" y="${yy}" width="${bar}" height="${visible}" rx="${Math.min(8,bar/2)}" class="v21CashBar" data-bar-index="${i}"/><rect x="${q.x-hitWidth/2}" y="${p.t}" width="${hitWidth}" height="${H-p.t-p.b}" class="v21CashBarHit" data-bar-hit-index="${i}" aria-label="${esc(data[i].full)} ${man(q.raw)}"/>`;
   }).join('');
-  const labelStep=data.length>=24?5:data.length>=12?3:1,labels=data.map((d,i)=>(i%labelStep===0||i===data.length-1)?`<text x="${x(i)}" y="${H-8}" text-anchor="middle" class="v21Axis">${d.label}</text>`:'').join('');
+  const labels=data.map((d,i)=>{
+    const show=data.length<=12||i===0||i===data.length-1||i%Math.ceil(data.length/6)===0;
+    return show?`<text x="${x(i)}" y="${H-8}" text-anchor="middle" class="v21Axis v21CashAxis">${d.label}</text>`:''
+  }).join('');
   const guides=scale.ticks.map(v=>{const yy=y(v);return `<line x1="${p.l}" x2="${W-p.r}" y1="${yy}" y2="${yy}" class="v21Grid"/><text x="${p.l-7}" y="${yy+4}" text-anchor="end" class="v21Axis">${compactMoney(v)}</text>`}).join('');
   return {pts,svg:`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${guides}<line x1="${p.l}" x2="${W-p.r}" y1="${zero}" y2="${zero}" class="v21CashBase"/>${bars}${labels}</svg>`};
 }
+function periodBarWidth(length){return length<=3?30:length<=5?26:length<=12?18:14}
 function renderCashflow21(el){
   const scope=['all','pension','irp'].includes(state.ui.analysisScope)?state.ui.analysisScope:'all',period=state.ui.v21CashPeriod,metric=state.ui.v21CashMetric,data=cashData(period,scope),chart=buildCashChart(data,'v21Cash',metric),meta=cashPeriodMeta(period);
   const values=data.map(d=>N(d[metric])),nonZero=values.map((v,i)=>v!==0?i:-1).filter(i=>i>=0),requested=Number(state.ui.v21CashPoint);
   let idx=Number.isFinite(requested)&&requested>=0&&requested<data.length&&values[requested]!==0?Math.round(requested):(nonZero.at(-1)??Math.max(0,data.length-1)),lastCard=-1;
   const total=values.reduce((a,b)=>a+b,0),average=data.length?total/data.length:0,peak=values.length?values.reduce((best,v)=>Math.abs(v)>Math.abs(best)?v:best,0):0,metricName=metric==='dividend'?'배당·분배금':'매도손익';
-  el.innerHTML=`${scopeSelect(scope)}<div class="v21Period"><button data-period="12m" class="${period==='12m'?'active':''}">1년</button><button data-period="3y" class="${period==='3y'?'active':''}">3년</button><button data-period="5y" class="${period==='5y'?'active':''}">5년</button><button data-period="all" class="${period==='all'?'active':''}">전체</button></div><section class="card v21ChartCard v21CashCard"><div class="v21ChartHead v21CashHead"><div><h2>현금흐름</h2><p>기간과 항목을 바꿔 수익 흐름을 확인하세요.</p></div><div class="v21MetricToggle"><button data-cash-metric="dividend" class="${metric==='dividend'?'active':''}">배당·분배금</button><button data-cash-metric="realized" class="${metric==='realized'?'active':''}">매도손익</button></div></div><div class="v21CashSummary"><div><span>${metricName} 합계</span><strong class="${metric==='realized'&&total<0?'bad':''}">${total>=0?'+':''}${man(total)}</strong></div><div><span>${meta.average}</span><b>${average>=0?'':'-'}${man(Math.abs(average))}</b></div><div><span>${meta.peak}</span><b class="${metric==='realized'&&peak<0?'bad':''}">${peak>=0?'+':''}${man(peak)}</b></div></div><div class="v21Chart v21CashChart">${chart.svg}</div><div class="v21PointCard v21CashPoint" id="v21CashPoint"></div><div class="v21CashNote">배당·분배금은 보유 중 받은 소득, 매도손익은 매도 시 확정된 손익입니다. 재투자는 별도 매수로 기록합니다.</div></section>`;
+  el.innerHTML=`${scopeSelect(scope)}<div class="v21Period"><button data-period="1y" class="${period==='1y'?'active':''}">1년</button><button data-period="3y" class="${period==='3y'?'active':''}">3년</button><button data-period="5y" class="${period==='5y'?'active':''}">5년</button><button data-period="all" class="${period==='all'?'active':''}">전체</button></div><section class="card v21ChartCard v21CashCard"><div class="v21ChartHead v21CashHead"><div><h2>현금흐름</h2><p>기간과 항목을 바꿔 수익 흐름을 확인하세요.</p></div><div class="v21MetricToggle"><button data-cash-metric="dividend" class="${metric==='dividend'?'active':''}">배당·분배금</button><button data-cash-metric="realized" class="${metric==='realized'?'active':''}">매도손익</button></div></div><div class="v21CashSummary"><div><span>${metricName} 합계</span><strong class="${metric==='realized'&&total<0?'bad':''}">${total>=0?'+':''}${man(total)}</strong></div><div><span>${meta.average}</span><b>${average>=0?'':'-'}${man(Math.abs(average))}</b></div><div><span>${meta.peak}</span><b class="${metric==='realized'&&peak<0?'bad':''}">${peak>=0?'+':''}${man(peak)}</b></div></div><div class="v21Chart v21CashChart">${chart.svg}</div><div class="v21PointCard v21CashPoint" id="v21CashPoint"></div><div class="v21CashNote">배당·분배금은 보유 중 받은 소득, 매도손익은 매도 시 확정된 손익입니다. 재투자는 별도 매수로 기록합니다.</div></section>`;
   const renderCard=i=>{if(i===lastCard)return;lastCard=i;idx=i;state.ui.v21CashPoint=i;const d=data[i],value=N(d[metric]);document.querySelectorAll('[data-bar-index]').forEach(bar=>bar.classList.toggle('selected',Number(bar.dataset.barIndex)===i));document.getElementById('v21CashPoint').innerHTML=`<div><span>${d.full}</span><strong class="${metric==='realized'&&value<0?'bad':''}">${value>=0?'+':''}${man(value)}</strong></div><div class="v21PointGrid"><span>배당·분배금 <b>${man(d.dividend)}</b></span><span>매도손익 <b class="${d.realized>=0?'good':'bad'}">${d.realized>=0?'+':''}${man(d.realized)}</b></span></div>`};
   renderCard(idx);
   bindDiscreteBarTargets('[data-bar-hit-index]',{initialIndex:idx,select:renderCard,commit:i=>{state.ui.v21CashPoint=i;save()}});bindScope(renderCashflow21);
@@ -250,11 +276,11 @@ renderAnalysisContent=function(){const el=document.getElementById('analysisConte
 /* ---------- future ---------- */
 function futureCustom(){
   const currentMonthly=N(state.settings.monthly.pension)+N(state.settings.monthly.irp),c=state.ui.v21Custom||{};
-  return {monthly:N(c.monthly)||currentMonthly,rate:Number.isFinite(Number(c.rate))?Number(c.rate):N(state.settings.returnRate),retAge:N(c.retAge)||N(state.profile.retirementAge),name:'내 가정'};
+  return {monthly:Number.isFinite(Number(c.monthly))?Math.max(0,Number(c.monthly)):currentMonthly,rate:Number.isFinite(Number(c.rate))?Number(c.rate):N(state.settings.returnRate),retAge:N(c.retAge)||N(state.profile.retirementAge),name:'내 가정'};
 }
 function scenarioProjection(key){
   const age=currentAge(),custom=futureCustom(),cfg={base:{name:'기준',rate:N(state.settings.returnRate),monthly:N(state.settings.monthly.pension)+N(state.settings.monthly.irp),retAge:N(state.profile.retirementAge)},safe:{name:'보수적',rate:Math.max(0,N(state.settings.returnRate)-2),monthly:N(state.settings.monthly.pension)+N(state.settings.monthly.irp),retAge:N(state.profile.retirementAge)},custom}[key];
-  const c=cfg||cfg.base,years=Math.max(1,c.retAge-age),rm=Math.pow(1+c.rate/100,1/12)-1;let bal=totalAsset(),cum=totalPrincipal();const out=[{age,end:bal,cumulative:cum,operating:bal-cum}];
+  const c=cfg||cfg.base,years=Math.max(0,c.retAge-age),rm=Math.pow(1+c.rate/100,1/12)-1;let bal=totalAsset(),cum=totalPrincipal();const out=[{age,end:bal,cumulative:cum,operating:bal-cum}];
   for(let i=0;i<years;i++){for(let m=0;m<12;m++){bal*=1+rm;bal+=c.monthly}cum+=c.monthly*12;out.push({age:age+i+1,end:bal,cumulative:cum,operating:bal-cum})}return {cfg:c,data:out};
 }
 function buildFutureAreaChart(data,id){
@@ -311,8 +337,8 @@ renderSettings=function(){
 /* ---------- final render wrapper ---------- */
 const prevAll=renderAll;
 renderAll=function(keep=false){
-  syncAge();state.meta.appVersion=BUILD;applyTheme();document.title='개인연금 V2.5';prevAll(keep);syncAge();state.meta.appVersion=BUILD;renderV21Home();if(state.ui.screen==='analysis')renderAnalysis();if(state.ui.screen==='future')renderFuture();const sub=document.getElementById('headerSub');if(sub)sub.textContent=`${currentAge()}세 · ${state.profile.retirementAge}세 연금 개시 계획`;
+  syncAge();state.meta.appVersion=BUILD;applyTheme();document.title='개인연금 V2.6';prevAll(keep);syncAge();state.meta.appVersion=BUILD;renderV21Home();if(state.ui.screen==='analysis')renderAnalysis();if(state.ui.screen==='future')renderFuture();const sub=document.getElementById('headerSub');if(sub)sub.textContent=`${currentAge()}세 · ${state.profile.retirementAge}세 연금 개시 계획`;
 };
 window.PensionV21={build:BUILD,aiDecision,expectedHistory,scenarioProjection,upsertMonthlySummary,applyTheme,compactMoney,axisScale};
-document.title='개인연금 V2.5';renderAll(true);save();
+document.title='개인연금 V2.6';renderAll(true);save();
 })();

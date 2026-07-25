@@ -1,4 +1,4 @@
-/* 개인연금 V2.5 차트 엔진 · 스플라인/스크러버/막대 선택 공통 모듈 */
+/* 개인연금 V2.6 차트 엔진 · 연속 스크러버/막대 선택 공통 모듈 */
 (()=>{
 'use strict';
 const N=v=>Number.isFinite(Number(v))?Number(v):0;
@@ -85,62 +85,97 @@ function samplePathY(pathId,x,fallback=0){
   const path=document.getElementById(pathId),sample=samplerFor(path);return sample?sample(x):N(fallback);
 }
 
-/* Frame-synchronised scrubber.
-   Samsung/Android browsers can deliver touch samples unevenly. The marker therefore follows
-   a time-based low-pass target instead of jumping directly between sparse pointer events. */
+/* Finger-locked scrubber.
+   - Marker position follows the latest finger coordinate once per animation frame.
+   - It does not snap or travel to a different point when the finger is released.
+   - The data card can still switch at the nearest real record through `index`.
+   - Pointer events are primary; touch events are a Samsung Internet fallback. */
 function bindSmoothScrubber(hitId,count,{position,index,commit,initialRaw}={}){
   const hit=document.getElementById(hitId);if(!hit||count<1)return ()=>{};
   const max=Math.max(0,count-1);
-  let display=clampValue(Number.isFinite(Number(initialRaw))?N(initialRaw):max,0,max),target=display;
-  let pointerId=null,startX=0,startY=0,horizontal=false,active=false,raf=0,lastIndex=-1,lastNow=0,destroyed=false,commitIndex=null;
+  let display=clampValue(Number.isFinite(Number(initialRaw))?N(initialRaw):max,0,max);
+  let pending=display,raf=0,lastIndex=-1,destroyed=false;
+  let pointerId=null,startX=0,startY=0,horizontal=false,resumeTouchAfterCancel=false;
+  let touchId=null,touchStartX=0,touchStartY=0,touchHorizontal=false;
   const rawFromClientX=x=>{const r=hit.getBoundingClientRect(),pct=clampValue((x-r.left)/Math.max(1,r.width),0,1);return pct*max};
+  const emit=raw=>{
+    display=clampValue(raw,0,max);position?.(display);
+    const i=Math.round(display);if(i!==lastIndex){lastIndex=i;index?.(i)}
+  };
+  const frame=()=>{raf=0;if(destroyed)return;emit(pending)};
+  const schedule=raw=>{pending=clampValue(raw,0,max);if(!raf)raf=requestAnimationFrame(frame)};
   const latestX=e=>{const list=typeof e.getCoalescedEvents==='function'?e.getCoalescedEvents():null;return list?.length?list.at(-1).clientX:e.clientX};
-  const draw=raw=>{display=clampValue(raw,0,max);position?.(display);const i=Math.round(display);if(i!==lastIndex){lastIndex=i;index?.(i)}};
-  const ensureFrame=()=>{if(!raf)raf=requestAnimationFrame(frame)};
-  const frame=now=>{
-    raf=0;if(destroyed)return;
-    const dt=lastNow?Math.min(34,Math.max(8,now-lastNow)):16;lastNow=now;
-    const distance=target-display;
-    /* 38 ms response while dragging, 58 ms while softly settling. */
-    const tau=active?26:54,alpha=1-Math.exp(-dt/tau);
-    display=Math.abs(distance)<.0008?target:display+distance*alpha;
-    draw(display);
-    if(Math.abs(target-display)>.0008||active){ensureFrame();return}
-    draw(target);
-    if(commitIndex!==null){const value=commitIndex;commitIndex=null;commit?.(value)}
-  };
-  const setTarget=raw=>{target=clampValue(raw,0,max);ensureFrame()};
-  const cancelFrame=()=>{if(raf)cancelAnimationFrame(raf);raf=0;lastNow=0};
-  const releaseCapture=e=>{try{hit.releasePointerCapture(e.pointerId)}catch(_){}};
-  const move=e=>{
-    if(pointerId!==e.pointerId)return;
-    const x=latestX(e),dx=Math.abs(x-startX),dy=Math.abs(e.clientY-startY);
-    if(!horizontal&&Math.max(dx,dy)>5){
-      if(dy>dx*1.08){pointerId=null;active=false;releaseCapture(e);return}
-      horizontal=true;active=true;document.body.classList.add('charting');
-      /* Start exactly under the finger. Do not travel across the whole chart from the previous selection. */
-      const raw=rawFromClientX(x);display=target=raw;lastNow=0;draw(raw);
-    }
-    if(horizontal){if(e.cancelable)e.preventDefault();setTarget(rawFromClientX(x))}
-  };
-  draw(display);
-  hit.onpointerdown=e=>{
-    cancelFrame();pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;horizontal=false;active=false;commitIndex=null;
-    const raw=rawFromClientX(e.clientX);display=target=raw;draw(raw);
+  const endCommit=()=>{if(raf){cancelAnimationFrame(raf);raf=0;emit(pending)}commit?.(Math.round(display),display)};
+  emit(display);
+
+  const pointerDown=e=>{
+    pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;horizontal=false;
+    pending=rawFromClientX(e.clientX);emit(pending);
     try{hit.setPointerCapture(e.pointerId)}catch(_){}
   };
-  hit.onpointermove=move;
-  /* Higher-frequency samples when the browser exposes them. */
-  hit.onpointerrawupdate=e=>{if(horizontal)move(e)};
-  hit.onpointerup=e=>{
+  const pointerMove=e=>{
     if(pointerId!==e.pointerId)return;
-    const raw=rawFromClientX(latestX(e));pointerId=null;active=false;horizontal=false;document.body.classList.remove('charting');
-    target=Math.round(raw);commitIndex=target;ensureFrame();releaseCapture(e)
+    const x=latestX(e),dx=Math.abs(x-startX),dy=Math.abs(e.clientY-startY);
+    if(!horizontal&&Math.max(dx,dy)>4){
+      if(dy>dx*1.12){try{hit.releasePointerCapture(e.pointerId)}catch(_){}pointerId=null;return}
+      horizontal=true;document.body.classList.add('charting');
+    }
+    if(horizontal){if(e.cancelable)e.preventDefault();schedule(rawFromClientX(x))}
   };
-  hit.onpointercancel=e=>{
-    if(pointerId!==e.pointerId)return;pointerId=null;active=false;horizontal=false;commitIndex=null;target=display;document.body.classList.remove('charting');releaseCapture(e)
+  const pointerUp=e=>{
+    if(pointerId!==e.pointerId)return;
+    if(horizontal)schedule(rawFromClientX(latestX(e)));
+    pointerId=null;horizontal=false;document.body.classList.remove('charting');
+    try{hit.releasePointerCapture(e.pointerId)}catch(_){}
+    endCommit();
   };
-  return ()=>{destroyed=true;cancelFrame();document.body.classList.remove('charting');hit.onpointerdown=hit.onpointermove=hit.onpointerrawupdate=hit.onpointerup=hit.onpointercancel=null};
+  const pointerCancel=e=>{
+    if(pointerId!==e.pointerId)return;
+    resumeTouchAfterCancel=horizontal&&e.pointerType==='touch';
+    pointerId=null;horizontal=false;
+    if(!resumeTouchAfterCancel){document.body.classList.remove('charting');endCommit()}
+  };
+
+  const findTouch=(list,id)=>{for(const t of list||[])if(t.identifier===id)return t;return null};
+  const touchStart=e=>{
+    resumeTouchAfterCancel=false;
+    if(pointerId!==null||touchId!==null||!e.changedTouches?.length)return;
+    const t=e.changedTouches[0];touchId=t.identifier;touchStartX=t.clientX;touchStartY=t.clientY;touchHorizontal=false;
+    pending=rawFromClientX(t.clientX);emit(pending);
+  };
+  const touchMove=e=>{
+    if(pointerId!==null)return;
+    if(touchId===null&&resumeTouchAfterCancel&&e.touches?.length===1){
+      const adopted=e.touches[0];touchId=adopted.identifier;touchStartX=adopted.clientX;touchStartY=adopted.clientY;touchHorizontal=true;resumeTouchAfterCancel=false;document.body.classList.add('charting');
+    }
+    if(touchId===null)return;
+    const t=findTouch(e.touches,touchId);if(!t)return;
+    const dx=Math.abs(t.clientX-touchStartX),dy=Math.abs(t.clientY-touchStartY);
+    if(!touchHorizontal&&Math.max(dx,dy)>4){if(dy>dx*1.12){touchId=null;return}touchHorizontal=true;document.body.classList.add('charting')}
+    if(touchHorizontal){if(e.cancelable)e.preventDefault();schedule(rawFromClientX(t.clientX))}
+  };
+  const touchEnd=e=>{
+    if(touchId===null&&resumeTouchAfterCancel){resumeTouchAfterCancel=false;document.body.classList.remove('charting');endCommit();return}
+    if(touchId===null||pointerId!==null)return;
+    const t=findTouch(e.changedTouches,touchId);if(t&&touchHorizontal)schedule(rawFromClientX(t.clientX));
+    touchId=null;touchHorizontal=false;resumeTouchAfterCancel=false;document.body.classList.remove('charting');endCommit();
+  };
+  const touchCancel=()=>{if(touchId===null&&!resumeTouchAfterCancel)return;touchId=null;touchHorizontal=false;resumeTouchAfterCancel=false;document.body.classList.remove('charting');endCommit()};
+
+  hit.addEventListener('pointerdown',pointerDown);
+  hit.addEventListener('pointermove',pointerMove);
+  hit.addEventListener('pointerrawupdate',pointerMove);
+  hit.addEventListener('pointerup',pointerUp);
+  hit.addEventListener('pointercancel',pointerCancel);
+  hit.addEventListener('touchstart',touchStart,{passive:true});
+  hit.addEventListener('touchmove',touchMove,{passive:false});
+  hit.addEventListener('touchend',touchEnd,{passive:true});
+  hit.addEventListener('touchcancel',touchCancel,{passive:true});
+  return ()=>{
+    destroyed=true;if(raf)cancelAnimationFrame(raf);document.body.classList.remove('charting');
+    hit.removeEventListener('pointerdown',pointerDown);hit.removeEventListener('pointermove',pointerMove);hit.removeEventListener('pointerrawupdate',pointerMove);hit.removeEventListener('pointerup',pointerUp);hit.removeEventListener('pointercancel',pointerCancel);
+    hit.removeEventListener('touchstart',touchStart);hit.removeEventListener('touchmove',touchMove);hit.removeEventListener('touchend',touchEnd);hit.removeEventListener('touchcancel',touchCancel);
+  };
 }
 
 /* Cash-flow bars are independent tap targets. Zero-value slots have no target and cannot be

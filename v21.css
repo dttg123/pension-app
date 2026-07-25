@@ -1,4 +1,4 @@
-/* 개인연금 V2.5 · polished mobile finish */
+/* 개인연금 V2.6 · polished mobile finish */
 :root{
   --bg:#f5f7fb;
   --surface:#fff;
@@ -71,7 +71,7 @@ main{padding:8px 16px 34px}.stack{gap:14px}.card{border-color:rgba(226,232,240,.
 @media(max-width:350px){.v21HomeGrid{grid-template-columns:1fr}.v21CompareRows{grid-template-columns:1fr}.v21FutureKpi{grid-template-columns:1fr}.v21CashSummary{grid-template-columns:1fr 1fr}.v21CashSummary>div:first-child{grid-column:1/-1}}
 body[data-screen="home"] .fab{display:none!important}.v21Home{padding-bottom:24px}.screen{padding-bottom:25px}
 
-/* ===== V2.5.0 final quality pass ===== */
+/* ===== V2.6 final quality pass ===== */
 html{color-scheme:light}html[data-theme="dark"]{color-scheme:dark}
 .v21HeroFixed{padding:0;overflow:hidden}.v21HeroFixed .v21HeroMain{cursor:default}.v21AccountLink{border:0;border-radius:999px;background:var(--blueSoft);color:var(--blue);font-size:10px;font-weight:900;padding:7px 9px;margin-top:8px}.v21Exact{padding:10px 22px 14px;color:var(--muted);font-size:9.5px;border-top:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .v21Chart svg *{vector-effect:non-scaling-stroke}.v21Hit{touch-action:pan-y;cursor:ew-resize}.v21Chart{user-select:none;-webkit-user-select:none}.v21Select,.v21Dot{will-change:transform}.v21Line{transition:opacity .15s ease}.v21Axis{font-size:11px;fill:#737f90}.v21TableWrap{max-height:430px;overscroll-behavior:contain}.v21TableWrap thead th{position:sticky;top:0;background:var(--surface);z-index:2}
@@ -115,11 +115,11 @@ html[data-theme="dark"] .v21TableWrap thead th{background:var(--surface)}
 }
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation-duration:.001ms!important;transition-duration:.001ms!important}.v21Line,.v21CashBar{transition:none!important}}
 
-/* V2.5 chart clipping: keep axis labels inside the chart instead of bleeding into headings. */
+/* V2.6 chart clipping: keep axis labels inside the chart instead of bleeding into headings. */
 .v21Chart{margin-top:10px;overflow:hidden;border-radius:10px}
 .v21Chart svg{overflow:hidden}
 
-/* ===== V2.5 graph interaction refinement ===== */
+/* ===== V2.6 graph interaction refinement ===== */
 /* Keep the page layout stable during horizontal chart scrubbing. */
 .v21Hit{touch-action:pan-y;cursor:ew-resize}
 .v21BarHit{cursor:pointer;touch-action:pan-y}
@@ -130,8 +130,16 @@ html[data-theme="dark"] .v21CashBar.selected{stroke:#0d1421}
 /* Marker motion is driven by requestAnimationFrame; CSS transitions would add lag. */
 .v21Select,.v21Dot{transition:none!important}
 
-/* ===== V2.5 cash-flow and touch finalisation ===== */
+/* ===== V2.6 cash-flow and touch finalisation ===== */
 .v21CashBarHit{fill:transparent;cursor:pointer;touch-action:pan-y;pointer-events:all}
 .v21CashBar{pointer-events:none}
 /* Selection is color-only: bars never translate, resize or animate across slots. */
 .v21CashBar,.v21CashBar.selected{transform:none!important;animation:none!important}
+
+
+/* V2.6 graph final: fixed calendar slots and finger-locked scrubbing */
+.v21Hit{touch-action:pan-y;pointer-events:all}
+.v21Select,.v21Dot{transition:none!important}
+.v21CashAxis{font-size:10px}
+.v21CashBar,.v21CashBar.selected{transform:none!important;animation:none!important;transition:fill 90ms ease,opacity 90ms ease,stroke 90ms ease!important}
+@media(max-width:390px){.v21CashAxis{font-size:9px}.v21CashChart{height:196px}}
