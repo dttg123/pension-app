@@ -1,9 +1,9 @@
-/* 개인연금 V2.9.1 최종 셸: 버전 고정, 진단, 저장 후처리, PWA 갱신 */
+/* 개인연금 V3.1 최종 셸: 버전 고정, 진단, 저장 후처리, PWA 갱신 */
 (()=>{
 'use strict';
-const VERSION='2.9.1';
-const BUILD='2026-07-25-v29-ui-input-settings-qa';
-const ARCHITECTURE='modular-flat-v2-9-maintainable-21';
+const VERSION='3.1.0';
+const BUILD='2026-07-25-v30-ui-classification-reset';
+const ARCHITECTURE='modular-flat-v3-0-maintainable-21';
 const MODULE_FILES=[
   'base.css','components.css','features.css','v21.css','v29.css',
   'core.js','ui.js','analysis.js','ocr.js','backup.js',
@@ -24,10 +24,10 @@ function forceVersion({persist=true}={}){
   }
 }
 function fixVersionUI(){
-  document.title='개인연금 V2.9.1';
-  document.querySelectorAll('.v0Badge,.v1Badge').forEach(b=>{b.textContent='V2.9.1';b.classList.add('v12Version')});
+  document.title='개인연금 V3.1';
+  document.querySelectorAll('.v0Badge,.v1Badge').forEach(b=>{b.textContent='V3.1';b.classList.add('v12Version')});
   const notice=document.querySelector('#settingsBody .sheetNotice');
-  if(notice)notice.textContent='저장 버튼을 눌러야 반영됩니다. 앱 V2.9.1 · 데이터 구조 6 · 사진 원본 저장 안 함';
+  if(notice)notice.textContent='저장 버튼을 눌러야 반영됩니다. 앱 V3.1 · 데이터 구조 6 · 사진 원본 저장 안 함';
 }
 function moduleAudit(){
   const resources=performance.getEntriesByType('resource').map(x=>{
