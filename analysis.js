@@ -77,10 +77,10 @@ function stableDateAge(){
   return {days,label:days===0?'오늘 갱신':days===1?'어제 갱신':`${days}일 전 갱신`};
 }
 function projectedAtRate(rate,monthlyExtra=0){
-  const years=Math.max(1,state.profile.retirementAge-state.profile.age),monthly=Number(state.settings.monthly.pension)+Number(state.settings.monthly.irp)+monthlyExtra;let bal=totalAsset();for(let y=0;y<years;y++){const rm=Math.pow(1+rate/100,1/12)-1;for(let m=0;m<12;m++){bal*=1+rm;bal+=monthly}}return bal;
+  const years=Math.max(0,state.profile.retirementAge-state.profile.age),monthly=Number(state.settings.monthly.pension)+Number(state.settings.monthly.irp)+monthlyExtra;let bal=totalAsset();for(let y=0;y<years;y++){const rm=Math.pow(1+rate/100,1/12)-1;for(let m=0;m<12;m++){bal*=1+rm;bal+=monthly}}return bal;
 }
 function runSmartAnalysis(){
-  const life=lifecycleAnalysis(),goal=goalStatus(),yearsLeft=state.profile.retirementAge-state.profile.age,top=topHolding('all'),irp=state.accounts.irp,irpTotal=accountTotal(irp),irpRisk=irpTotal?irp.holdings.filter(h=>h.risk!==false).reduce((s,h)=>s+h.value,0)/irpTotal*100:0,age=stableDateAge();
+  const life=lifecycleAnalysis(),goal=goalStatus(),yearsLeft=Math.max(0,state.profile.retirementAge-state.profile.age),top=topHolding('all'),irp=state.accounts.irp,irpTotal=accountTotal(irp),irpRisk=irpTotal?irp.holdings.filter(h=>h.risk!==false).reduce((s,h)=>s+h.value,0)/irpTotal*100:0,age=stableDateAge();
   const classes=state.settings.assetClasses.map(c=>{const totals=classTotals(),all=Object.values(totals).reduce((s,n)=>s+n,0)||1,cur=(totals[c.id]||0)/all*100;return {name:c.name,diff:cur-c.target,cur,target:c.target}}),largestGap=[...classes].sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff))[0];
   const recent=Object.keys(state.years).map(Number).sort((a,b)=>b-a).slice(0,3).map(y=>state.years[y]);const planned=(Number(state.settings.monthly.pension)+Number(state.settings.monthly.irp))*12,consistency=planned?recent.filter(r=>(Number(r.contribution)||0)>=planned*.8).length/Math.max(1,recent.length)*100:100;
   let score=100,issues=[];const add=(severity,title,body)=>{issues.push({severity,title,body});score-=severity};

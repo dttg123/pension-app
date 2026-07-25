@@ -1,4 +1,4 @@
-/* 개인연금 V2.6 차트 엔진 · 연속 스크러버/막대 선택 공통 모듈 */
+/* 개인연금 V2.9.1 차트 엔진 · 연속 스크러버/막대 선택 공통 모듈 */
 (()=>{
 'use strict';
 const N=v=>Number.isFinite(Number(v))?Number(v):0;

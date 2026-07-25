@@ -1,13 +1,13 @@
-/* 개인연금 V2.6 최종 셸: 버전 고정, 진단, 저장 후처리, PWA 갱신 */
+/* 개인연금 V2.9.1 최종 셸: 버전 고정, 진단, 저장 후처리, PWA 갱신 */
 (()=>{
 'use strict';
-const VERSION='2.6.0';
-const BUILD='2026-07-25-v25-cashflow-touch-qa';
-const ARCHITECTURE='modular-flat-v2-4-maintainable-19';
+const VERSION='2.9.1';
+const BUILD='2026-07-25-v29-ui-input-settings-qa';
+const ARCHITECTURE='modular-flat-v2-9-maintainable-21';
 const MODULE_FILES=[
-  'base.css','components.css','features.css','v21.css',
+  'base.css','components.css','features.css','v21.css','v29.css',
   'core.js','ui.js','analysis.js','ocr.js','backup.js',
-  'planning.js','ledger.js','coach.js','integrity.js','charts.js','v21.js'
+  'planning.js','ledger.js','coach.js','integrity.js','charts.js','v21.js','v29.js'
 ];
 function currentState(){try{return typeof state!=='undefined'?state:(window.state||null)}catch(_){return window.state||null}}
 function forceVersion({persist=true}={}){
@@ -24,10 +24,10 @@ function forceVersion({persist=true}={}){
   }
 }
 function fixVersionUI(){
-  document.title='개인연금 V2.6';
-  document.querySelectorAll('.v0Badge,.v1Badge').forEach(b=>{b.textContent='V2.6';b.classList.add('v12Version')});
+  document.title='개인연금 V2.9.1';
+  document.querySelectorAll('.v0Badge,.v1Badge').forEach(b=>{b.textContent='V2.9.1';b.classList.add('v12Version')});
   const notice=document.querySelector('#settingsBody .sheetNotice');
-  if(notice)notice.textContent='저장 버튼을 눌러야 반영됩니다. 앱 V2.6.0 · 데이터 구조 6 · 사진 원본 저장 안 함';
+  if(notice)notice.textContent='저장 버튼을 눌러야 반영됩니다. 앱 V2.9.1 · 데이터 구조 6 · 사진 원본 저장 안 함';
 }
 function moduleAudit(){
   const resources=performance.getEntriesByType('resource').map(x=>{
@@ -57,11 +57,11 @@ function health(){
     privacy:privacy||{ok:false,issues:['개인정보 감사 엔진이 준비되지 않았습니다.']},
     localStorageAvailable:(()=>{try{return typeof STORAGE!=='undefined'&&Boolean(localStorage.getItem(STORAGE))}catch(_){return false}})(),
     cloudConnected:Boolean(window.PensionStorageAdapters?.cloud?.save),
-    driveConnected:Boolean(window.PensionStorageAdapters?.drive?.save)
+    driveConnected:Boolean(window.PensionStorageAdapters?.drive?.upload)
   };
 }
 
-/* 하위 모듈이 과거 버전 문자열을 다시 쓰더라도 최종 저장값은 항상 2.6.0으로 고정한다. */
+/* 하위 모듈이 과거 버전 문자열을 다시 쓰더라도 최종 저장값은 항상 2.9.1으로 고정한다. */
 if(typeof save==='function'){
   const previousSave=save;
   save=function(){
@@ -189,7 +189,7 @@ function addHistoryLedger(type,year,amount,{accountKey='',assetName=''}={}){
   state.ledger.push({
     id:historyUid(type),type,date:`${year}-12-28T12:00:00.000Z`,monthKey:`${year}-12`,year,
     accountKey,accountId:accountKey?`account-${accountKey}`:'',assetName,amount,
-    source:HISTORY_SOURCE,synthetic:true,note:'V2.6 과거 연도 입력 원장 조정',createdAt:new Date().toISOString(),ledgerSchemaVersion:2
+    source:HISTORY_SOURCE,synthetic:true,note:'V2.9 과거 연도 입력 원장 조정',createdAt:new Date().toISOString(),ledgerSchemaVersion:2
   });
 }
 function reconcileHistoryLedger(){
@@ -340,7 +340,7 @@ if('serviceWorker' in navigator&&location.protocol!=='file:'){
 /* ===== V2.0 RC3 UX consolidation: analysis, diagnosis, contribution and profile ===== */
 (()=>{
 'use strict';
-const UX_BUILD='2.6.0';
+const UX_BUILD='2.9.1';
 const UX_LABEL={all:'전체',pension:'연금저축',irp:'IRP'};
 const uxN=v=>Number.isFinite(Number(v))?Number(v):0;
 const uxMoney=v=>Math.max(0,parseMoney(v));
@@ -413,7 +413,7 @@ renderSettings=function(){
   uxEnsureProfile();uxPreviousSettings();const body=document.getElementById('settingsBody'),age=document.getElementById('setAge');if(age){const field=age.closest('.field'),label=field?.querySelector('label');if(label)label.textContent='출생연도';age.id='setBirthYear';age.value=state.profile.birthYear;age.min=String(CURRENT_YEAR-80);age.max=String(CURRENT_YEAR-18);const hint=document.createElement('div');hint.className='fieldHint';hint.id='uxAgeHint';hint.textContent=`올해 기준 ${state.profile.age}세로 자동 계산`;field?.appendChild(hint)}
   const saveBar=body?.querySelector('.saveBar');if(saveBar&&!document.getElementById('uxHistoryLaunch')){const sec=document.createElement('div');sec.className='settingsSection';sec.innerHTML=`<div class="settingsTitle">고급 데이터 관리</div><button class="dataLaunch uxHistoryLaunch" id="uxHistoryLaunch"><span><b>과거 연도 기록</b><small>원문은 기본적으로 숨기고 필요할 때만 편집합니다.</small></span><span>›</span></button>`;body.insertBefore(sec,saveBar);document.getElementById('uxHistoryLaunch').onclick=()=>{closeSheet('settingsSheet');setTimeout(()=>quickForm('history'),180)}}
   const birth=document.getElementById('setBirthYear');birth?.addEventListener('input',()=>{const y=Number(birth.value),hint=document.getElementById('uxAgeHint');if(hint)hint.textContent=Number.isInteger(y)?`올해 기준 ${CURRENT_YEAR-y}세로 자동 계산`:''});
-  const btn=document.getElementById('saveSettings');if(!btn)return;btn.onclick=()=>{const err=document.getElementById('settingsError'),birthYear=Number(document.getElementById('setBirthYear').value),ageNow=CURRENT_YEAR-birthYear+1,ret=Number(document.getElementById('setRetAge').value),p=uxMoney(document.getElementById('setPension').value),i=uxMoney(document.getElementById('setIrp').value),goal=uxMoney(document.getElementById('setGoal').value),rate=Number(document.getElementById('setReturn').value),infl=Number(document.getElementById('setInflation').value),years=Number(document.getElementById('setYears').value),wr=Number(document.getElementById('setWithdrawReturn').value),annual=uxMoney(document.getElementById('setAnnualLimit')?.value||state.settings.annualContributionLimit),tax=uxMoney(document.getElementById('setTaxLimit')?.value||state.settings.taxCreditLimit);document.querySelectorAll('.className').forEach(x=>settingsDraft.settings.assetClasses[x.dataset.i].name=x.value.trim());document.querySelectorAll('.classTarget').forEach(x=>settingsDraft.settings.assetClasses[x.dataset.i].target=Number(x.value));const names=settingsDraft.settings.assetClasses.map(c=>c.name),sum=settingsDraft.settings.assetClasses.reduce((s,c)=>s+uxN(c.target),0);let msg='';if(!Number.isInteger(birthYear)||ageNow<18||ageNow>80)msg='출생연도를 확인하세요.';else if(ret<=ageNow||ret>90)msg='연금 개시 나이는 현재 나이보다 크고 90세 이하여야 해요.';else if([p,i,goal,annual,tax].some(v=>v<0||v>100000000))msg='금액은 0원 이상으로 입력하세요.';else if((p+i)*12>annual)msg='월 납입 계획의 연환산액이 연금계좌 총 납입 한도를 넘습니다.';else if(tax>annual)msg='세액공제 한도는 총 납입 한도보다 클 수 없어요.';else if(!Number.isFinite(rate)||rate<-20||rate>20)msg='적립 기대수익률은 -20~20%로 입력하세요.';else if(!Number.isFinite(infl)||infl<0||infl>10)msg='물가상승률은 0~10%로 입력하세요.';else if(years<5||years>50)msg='수령 기간은 5~50년으로 입력하세요.';else if(!Number.isFinite(wr)||wr<-10||wr>15)msg='수령 중 수익률은 -10~15%로 입력하세요.';else if(names.some(v=>!v)||new Set(names).size!==names.length)msg='자산군 이름은 비우거나 중복할 수 없어요.';else if(settingsDraft.settings.assetClasses.some(c=>uxN(c.target)<0||uxN(c.target)>100)||Math.abs(sum-100)>.01)msg='자산군 목표 비중 합계를 100%로 맞춰주세요.';if(msg){err.textContent=msg;return}state.profile={...state.profile,birthYear,age:ageNow,retirementAge:ret};state.settings={...settingsDraft.settings,monthly:{pension:p,irp:i},goalMonthly:goal,returnRate:rate,inflation:infl,withdrawYears:years,withdrawReturn:wr,annualContributionLimit:annual,taxCreditLimit:tax};state.ui.futureAge=clamp(state.ui.futureAge,ageNow,ret);save();closeSheet('settingsSheet');renderAll(true);toast('설정을 저장했어요')};
+  const btn=document.getElementById('saveSettings');if(!btn)return;btn.onclick=()=>{const err=document.getElementById('settingsError'),birthYear=Number(document.getElementById('setBirthYear').value),ageNow=CURRENT_YEAR-birthYear+1,ret=Number(document.getElementById('setRetAge').value),p=uxMoney(document.getElementById('setPension').value),i=uxMoney(document.getElementById('setIrp').value),goal=uxMoney(document.getElementById('setGoal').value),rate=Number(document.getElementById('setReturn').value),infl=Number(document.getElementById('setInflation').value),years=Number(document.getElementById('setYears').value),wr=Number(document.getElementById('setWithdrawReturn').value),annual=uxMoney(document.getElementById('setAnnualLimit')?.value||state.settings.annualContributionLimit),tax=uxMoney(document.getElementById('setTaxLimit')?.value||state.settings.taxCreditLimit);document.querySelectorAll('.className').forEach(x=>settingsDraft.settings.assetClasses[x.dataset.i].name=x.value.trim());document.querySelectorAll('.classTarget').forEach(x=>settingsDraft.settings.assetClasses[x.dataset.i].target=Number(x.value));const names=settingsDraft.settings.assetClasses.map(c=>c.name),sum=settingsDraft.settings.assetClasses.reduce((s,c)=>s+uxN(c.target),0);let msg='';if(!Number.isInteger(birthYear)||ageNow<18||ageNow>100)msg='출생연도를 확인하세요.';else if(ret<18||ret>90)msg='연금 개시 나이는 18~90세로 입력하세요.';else if([p,i,goal,annual,tax].some(v=>v<0||v>100000000))msg='금액은 0원 이상으로 입력하세요.';else if((p+i)*12>annual)msg='월 납입 계획의 연환산액이 연금계좌 총 납입 한도를 넘습니다.';else if(tax>annual)msg='세액공제 한도는 총 납입 한도보다 클 수 없어요.';else if(!Number.isFinite(rate)||rate<-20||rate>20)msg='적립 기대수익률은 -20~20%로 입력하세요.';else if(!Number.isFinite(infl)||infl<0||infl>10)msg='물가상승률은 0~10%로 입력하세요.';else if(years<5||years>50)msg='수령 기간은 5~50년으로 입력하세요.';else if(!Number.isFinite(wr)||wr<-10||wr>15)msg='수령 중 수익률은 -10~15%로 입력하세요.';else if(names.some(v=>!v)||new Set(names).size!==names.length)msg='자산군 이름은 비우거나 중복할 수 없어요.';else if(settingsDraft.settings.assetClasses.some(c=>uxN(c.target)<0||uxN(c.target)>100)||Math.abs(sum-100)>.01)msg='자산군 목표 비중 합계를 100%로 맞춰주세요.';if(msg){err.textContent=msg;return}state.profile={...state.profile,birthYear,age:ageNow,retirementAge:ret};state.settings={...settingsDraft.settings,monthly:{pension:p,irp:i},goalMonthly:goal,returnRate:rate,inflation:infl,withdrawYears:years,withdrawReturn:wr,annualContributionLimit:annual,taxCreditLimit:tax};state.ui.futureAge=clamp(state.ui.futureAge,ageNow,ret);save();closeSheet('settingsSheet');renderAll(true);toast('설정을 저장했어요')};
 };
 const uxPreviousRenderAll=renderAll;
 renderAll=function(keepScreen=false){uxEnsureProfile();uxPreviousRenderAll(keepScreen);const sub=document.getElementById('headerSub');if(sub)sub.textContent=`${state.profile.age}세 · ${state.profile.retirementAge}세 연금 개시 계획`;document.querySelectorAll('#future th,#future .detailBarTop span').forEach(node=>{if(node.textContent.includes('예상 운용증가'))node.textContent=node.textContent.replace('예상 운용증가','예상 투자수익')});};
@@ -425,7 +425,7 @@ window.PensionUX={build:UX_BUILD,currentAge:()=>{uxEnsureProfile();return state.
 /* ===== V2.0 RC5 expert refinement: outcome-first pension experience ===== */
 (()=>{
 'use strict';
-const RC5_BUILD='2.6.0';
+const RC5_BUILD='2.9.1';
 const R5_LABEL={all:'전체',pension:'연금저축',irp:'IRP'};
 const r5n=v=>Number.isFinite(Number(v))?Number(v):0;
 const r5Scope=()=>['all','pension','irp'].includes(state.ui.analysisScope)?state.ui.analysisScope:'all';

@@ -1,7 +1,7 @@
 /* ===== js/40-release-polish.js ===== */
 (()=>{
 'use strict';
-const RELEASE_VERSION='2.6.0';
+const RELEASE_VERSION='2.9.1';
 state.meta=state.meta||{};state.meta.appVersion=RELEASE_VERSION;
 
 /* ---------- clean chart interaction ---------- */

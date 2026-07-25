@@ -1,7 +1,7 @@
-/* 개인연금 V2.6 · 그래프/연도 전환 최종 안정화 레이어 */
+/* 개인연금 V2.9.1 · 그래프/연도 전환 최종 안정화 레이어 */
 (()=>{
 'use strict';
-const BUILD='2.6.0';
+const BUILD='2.9.1';
 const N=v=>Number.isFinite(Number(v))?Number(v):0;
 const CHART=window.PensionCharts;
 if(!CHART)throw new Error('차트 엔진을 불러오지 못했습니다.');
@@ -61,8 +61,8 @@ closeSheet=function(){
 window.addEventListener('pagehide',()=>clearInterval(rolloverTimer),{once:true});
 
 syncAge();applyTheme();
-document.title='개인연금 V2.6';
-state.meta.appVersion=BUILD;state.meta.uxBuild='v2.6-graph-rollover-final';
+document.title='개인연금 V2.9.1';
+state.meta.appVersion=BUILD;state.meta.uxBuild='v2.9-graph-rollover-stable';
 if(!['performance','cashflow','compare'].includes(state.ui.analysisPanel))state.ui.analysisPanel='performance';
 if(state.ui.v21CashPeriod==='12m')state.ui.v21CashPeriod='1y';
 state.ui.v21CashPeriod=['1y','3y','5y','all'].includes(state.ui.v21CashPeriod)?state.ui.v21CashPeriod:'5y';
@@ -80,7 +80,7 @@ function repairCurrentYearSyntheticCashflow(){
     if(!legacy||year!==CURRENT_YEAR||!Number.isFinite(month)||month<=CURRENT_MONTH)continue;
     row.monthKey=CURRENT_KEY;row.year=CURRENT_YEAR;row.date=`${CURRENT_KEY}-28T12:00:00.000Z`;row.updatedAt=new Date().toISOString();changed=true;
   }
-  if(changed){state.meta.syntheticCashflowRepair='v2.6-current-month';window.PensionV11Ledger?.rebuild?.()}
+  if(changed){state.meta.syntheticCashflowRepair='v2.9-current-month';window.PensionV11Ledger?.rebuild?.()}
 }
 repairCurrentYearSyntheticCashflow();
 
@@ -297,7 +297,7 @@ function futurePosition(id,chart,raw){const x=interpolateX(chart.pts,raw),fallba
 function openFutureEditor(){
   const c=futureCustom();document.getElementById('formTitle').textContent='내 가정 설정';document.getElementById('formBody').innerHTML=`<div class="sheetNotice">기본 계획은 그대로 두고 비교용 가정만 만듭니다.</div><div class="field"><label>월 납입액</label><input id="v21CustomMonthly" inputmode="numeric" value="${Number(c.monthly).toLocaleString('ko-KR')}"></div><div class="twoFields"><div class="field"><label>기대수익률</label><input id="v21CustomRate" type="number" step="0.1" value="${c.rate}"></div><div class="field"><label>연금 개시 나이</label><input id="v21CustomRet" type="number" value="${c.retAge}"></div></div><button class="btn primary full" id="v21CustomSave" style="margin-top:16px">비교 가정 적용</button>`;openSheet('formSheet');
   const monthly=document.getElementById('v21CustomMonthly');monthly.onblur=()=>{const n=parseMoney(monthly.value);monthly.value=n?Number(n).toLocaleString('ko-KR'):''};
-  document.getElementById('v21CustomSave').onclick=()=>{const m=parseMoney(monthly.value),rate=N(document.getElementById('v21CustomRate').value),ret=N(document.getElementById('v21CustomRet').value);if(m<0||rate<0||rate>20||ret<=currentAge()||ret>80){toast('가정 값을 확인하세요');return}state.ui.v21Custom={monthly:m,rate,retAge:ret};state.ui.v21Scenario='custom';state.ui.futureAge=ret;closeSheet('formSheet');renderFutureContent();save()};
+  document.getElementById('v21CustomSave').onclick=()=>{const m=parseMoney(monthly.value),rate=N(document.getElementById('v21CustomRate').value),ret=N(document.getElementById('v21CustomRet').value);if(m<0||rate<0||rate>20||ret<currentAge()||ret>80){toast('가정 값을 확인하세요');return}state.ui.v21Custom={monthly:m,rate,retAge:ret};state.ui.v21Scenario='custom';state.ui.futureAge=ret;closeSheet('formSheet');renderFutureContent();save()};
 }
 renderFuture=function(){document.getElementById('future').innerHTML='<div id="futureContent"></div>';renderFutureContent()};
 renderFutureContent=function(){
@@ -337,8 +337,8 @@ renderSettings=function(){
 /* ---------- final render wrapper ---------- */
 const prevAll=renderAll;
 renderAll=function(keep=false){
-  syncAge();state.meta.appVersion=BUILD;applyTheme();document.title='개인연금 V2.6';prevAll(keep);syncAge();state.meta.appVersion=BUILD;renderV21Home();if(state.ui.screen==='analysis')renderAnalysis();if(state.ui.screen==='future')renderFuture();const sub=document.getElementById('headerSub');if(sub)sub.textContent=`${currentAge()}세 · ${state.profile.retirementAge}세 연금 개시 계획`;
+  syncAge();state.meta.appVersion=BUILD;applyTheme();document.title='개인연금 V2.9.1';prevAll(keep);syncAge();state.meta.appVersion=BUILD;renderV21Home();if(state.ui.screen==='analysis')renderAnalysis();if(state.ui.screen==='future')renderFuture();const sub=document.getElementById('headerSub');if(sub)sub.textContent=`${currentAge()}세 · ${state.profile.retirementAge}세 연금 개시 계획`;
 };
 window.PensionV21={build:BUILD,aiDecision,expectedHistory,scenarioProjection,upsertMonthlySummary,applyTheme,compactMoney,axisScale};
-document.title='개인연금 V2.6';renderAll(true);save();
+document.title='개인연금 V2.9.1';renderAll(true);save();
 })();
