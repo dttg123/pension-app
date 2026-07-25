@@ -11,9 +11,9 @@ function ensurePhotoViewer(){
  v.querySelector('[data-pv=plus]').onclick=()=>{scale=clamp(scale+.25,1,3);paint()};
  v.querySelector('[data-pv=minus]').onclick=()=>{scale=clamp(scale-.25,1,3);paint()};
  v.querySelector('[data-pv=rotate]').onclick=()=>{rotation=(rotation+90)%360;paint()};
- v.querySelector('[data-pv=close]').onclick=()=>{v.classList.remove('open');document.body.style.overflow=''};
+ v.querySelector('[data-pv=close]').onclick=()=>{v.classList.remove('open');window.syncModalState?.()};
  v.addEventListener('click',e=>{if(e.target===v) v.querySelector('[data-pv=close]').click()});
- window.openPhotoViewer=src=>{if(!src)return;scale=1;rotation=0;img.src=src;paint();v.classList.add('open');document.body.style.overflow='hidden';body.scrollTo(0,0)};
+ window.openPhotoViewer=src=>{if(!src)return;scale=1;rotation=0;img.src=src;paint();v.classList.add('open');window.syncModalState?.();body.scrollTo(0,0)};
 }
 ensurePhotoViewer();
 

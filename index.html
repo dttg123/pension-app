@@ -9,15 +9,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<title>개인연금 V3.1</title>
+<title>개인연금 V3.1.1</title>
 <script>
 (()=>{try{const raw=localStorage.getItem('pension-v1'),mode=raw?JSON.parse(raw)?.settings?.theme:'auto',dark=mode==='dark'||(mode!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=dark?'dark':'light';document.documentElement.dataset.themeMode=['auto','light','dark'].includes(mode)?mode:'auto'}catch(_){document.documentElement.dataset.theme='light';document.documentElement.dataset.themeMode='auto'}})();
 </script>
-<link rel="stylesheet" href="base.css">
-<link rel="stylesheet" href="components.css">
-<link rel="stylesheet" href="features.css">
-<link rel="stylesheet" href="v21.css">
-<link rel="stylesheet" href="v29.css">
+<link rel="stylesheet" href="base.css?v=3.1.1">
+<link rel="stylesheet" href="components.css?v=3.1.1">
+<link rel="stylesheet" href="features.css?v=3.1.1">
+<link rel="stylesheet" href="v21.css?v=3.1.1">
+<link rel="stylesheet" href="v29.css?v=3.1.1">
 <link rel="manifest" href="manifest.webmanifest">
 </head>
 <body>
@@ -49,17 +49,17 @@
 <div class="overlay" id="settingsSheet"><div class="sheet"><div class="sheetHead"><div class="sheetTitle">설정</div><button class="closeBtn" data-close="settingsSheet">×</button></div><div id="settingsBody"></div></div></div>
 <div class="overlay" id="formSheet"><div class="sheet"><div class="sheetHead"><div class="sheetTitle" id="formTitle">입력</div><button class="closeBtn" data-close="formSheet">×</button></div><div id="formBody"></div></div></div>
 <div class="toast" id="toast"></div>
-<script defer src="core.js"></script>
-<script defer src="ui.js"></script>
-<script defer src="analysis.js"></script>
-<script defer src="ocr.js"></script>
-<script defer src="backup.js"></script>
-<script defer src="planning.js"></script>
-<script defer src="ledger.js"></script>
-<script defer src="coach.js"></script>
-<script defer src="integrity.js"></script>
-<script defer src="charts.js"></script>
-<script defer src="v21.js"></script>
-<script defer src="v29.js"></script>
+<script defer src="core.js?v=3.1.1"></script>
+<script defer src="ui.js?v=3.1.1"></script>
+<script defer src="analysis.js?v=3.1.1"></script>
+<script defer src="ocr.js?v=3.1.1"></script>
+<script defer src="backup.js?v=3.1.1"></script>
+<script defer src="planning.js?v=3.1.1"></script>
+<script defer src="ledger.js?v=3.1.1"></script>
+<script defer src="coach.js?v=3.1.1"></script>
+<script defer src="integrity.js?v=3.1.1"></script>
+<script defer src="charts.js?v=3.1.1"></script>
+<script defer src="v21.js?v=3.1.1"></script>
+<script defer src="v29.js?v=3.1.1"></script>
 </body>
 </html>

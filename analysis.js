@@ -196,8 +196,8 @@ function upgradePhotoViewer(){
   const paint=()=>{const inner=Math.max(240,body.clientWidth-28),ratio=img.naturalWidth?img.naturalHeight/img.naturalWidth:2.1,baseW=inner,baseH=inner*ratio,w=baseW*scale,h=baseH*scale,side=rotation%180!==0;stage.style.width=`${side?h:w}px`;stage.style.height=`${side?w:h}px`;img.style.width=`${w}px`;img.style.height=`${h}px`;img.style.transform=`translate(-50%,-50%) rotate(${rotation}deg)`};
   img.addEventListener('load',paint);new ResizeObserver(paint).observe(body);
   viewer.querySelector('[data-pv=plus]').onclick=()=>{scale=clamp(scale+.25,1,3);paint()};viewer.querySelector('[data-pv=minus]').onclick=()=>{scale=clamp(scale-.25,1,3);paint()};viewer.querySelector('[data-pv=rotate]').onclick=()=>{rotation=(rotation+90)%360;paint()};
-  const close=()=>{viewer.classList.remove('open');document.body.style.overflow=''};viewer.querySelector('[data-pv=close]').onclick=close;viewer.addEventListener('click',e=>{if(e.target===viewer)close()});
-  window.openPhotoViewer=src=>{if(!src)return;scale=1;rotation=0;img.src=src;viewer.classList.add('open');document.body.style.overflow='hidden';requestAnimationFrame(()=>{paint();body.scrollTo(0,0)})};
+  const close=()=>{viewer.classList.remove('open');window.syncModalState?.()};viewer.querySelector('[data-pv=close]').onclick=close;viewer.addEventListener('click',e=>{if(e.target===viewer)close()});
+  window.openPhotoViewer=src=>{if(!src)return;scale=1;rotation=0;img.src=src;viewer.classList.add('open');window.syncModalState?.();requestAnimationFrame(()=>{paint();body.scrollTo(0,0)})};
 }
 upgradePhotoViewer();
 

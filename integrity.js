@@ -1,9 +1,9 @@
-/* 개인연금 V3.1 최종 셸: 버전 고정, 진단, 저장 후처리, PWA 갱신 */
+/* 개인연금 V3.1.1 최종 셸: 버전 고정, 진단, 저장 후처리, PWA 갱신 */
 (()=>{
 'use strict';
-const VERSION='3.1.0';
-const BUILD='2026-07-25-v30-ui-classification-reset';
-const ARCHITECTURE='modular-flat-v3-0-maintainable-21';
+const VERSION='3.1.1';
+const BUILD='2026-07-26-v31-scroll-input-hotfix';
+const ARCHITECTURE='modular-flat-v3-1-maintainable-21';
 const MODULE_FILES=[
   'base.css','components.css','features.css','v21.css','v29.css',
   'core.js','ui.js','analysis.js','ocr.js','backup.js',
@@ -24,10 +24,10 @@ function forceVersion({persist=true}={}){
   }
 }
 function fixVersionUI(){
-  document.title='개인연금 V3.1';
-  document.querySelectorAll('.v0Badge,.v1Badge').forEach(b=>{b.textContent='V3.1';b.classList.add('v12Version')});
+  document.title='개인연금 V3.1.1';
+  document.querySelectorAll('.v0Badge,.v1Badge').forEach(b=>{b.textContent='V3.1.1';b.classList.add('v12Version')});
   const notice=document.querySelector('#settingsBody .sheetNotice');
-  if(notice)notice.textContent='저장 버튼을 눌러야 반영됩니다. 앱 V3.1 · 데이터 구조 6 · 사진 원본 저장 안 함';
+  if(notice)notice.textContent='저장 버튼을 눌러야 반영됩니다. 앱 V3.1.1 · 데이터 구조 6 · 사진 원본 저장 안 함';
 }
 function moduleAudit(){
   const resources=performance.getEntriesByType('resource').map(x=>{
@@ -61,7 +61,7 @@ function health(){
   };
 }
 
-/* 하위 모듈이 과거 버전 문자열을 다시 쓰더라도 최종 저장값은 항상 2.9.1으로 고정한다. */
+/* 하위 모듈이 과거 버전 문자열을 다시 쓰더라도 최종 저장값은 항상 3.1.1로 고정한다. */
 if(typeof save==='function'){
   const previousSave=save;
   save=function(){
@@ -331,6 +331,11 @@ try{if(typeof renderAll==='function')renderAll(true)}catch(_){ }
 fixVersionUI();
 
 if('serviceWorker' in navigator&&location.protocol!=='file:'){
+  let refreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(refreshing||sessionStorage.getItem('pension-sw-3.1.1-reloaded'))return;
+    refreshing=true;sessionStorage.setItem('pension-sw-3.1.1-reloaded','1');location.reload();
+  });
   window.addEventListener('load',async()=>{
     try{const registration=await navigator.serviceWorker.register('./sw.js');await registration.update()}catch(_){ }
   },{once:true});
@@ -340,7 +345,7 @@ if('serviceWorker' in navigator&&location.protocol!=='file:'){
 /* ===== V2.0 RC3 UX consolidation: analysis, diagnosis, contribution and profile ===== */
 (()=>{
 'use strict';
-const UX_BUILD='2.9.1';
+const UX_BUILD='3.1.1';
 const UX_LABEL={all:'전체',pension:'연금저축',irp:'IRP'};
 const uxN=v=>Number.isFinite(Number(v))?Number(v):0;
 const uxMoney=v=>Math.max(0,parseMoney(v));

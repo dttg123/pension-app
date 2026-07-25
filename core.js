@@ -1,8 +1,8 @@
-/* 개인연금 V3.1 코어 및 UI */
+/* 개인연금 V3.1.1 코어 및 UI */
 
 /* ===== js/00-core.js ===== */
 'use strict';
-const APP_VERSION='3.1.0',SCHEMA_VERSION=6,STORAGE='pension-v1',LEGACY_KEYS=['pension-v8-r4b','pension-v8-r4','pension-v8-r2','pension-v8-final'];
+const APP_VERSION='3.1.1',SCHEMA_VERSION=6,STORAGE='pension-v1',LEGACY_KEYS=['pension-v8-r4b','pension-v8-r4','pension-v8-r2','pension-v8-final'];
 const DB_NAME='asset-os-local',DB_STORE='apps',DB_KEY='pension-v1',LEGACY_DB_KEY='pension-r4b';
 const RETURN_PATTERN=[6.8,-7.5,12.4,8.1,4.3,15.2,-11.8,9.7,6.1,13.4,2.5,-5.6,10.8,7.3,4.9,16.1,-14.2,8.7,5.5,11.6,3.2,-6.9,12.9,7.8,5.1,9.4,-10.5,13.7,6.6,8.2];
 const WITHDRAW_PATTERN=[4.5,-12,10,7,3,8,-5,6,4,9,2,-8,7,5,3,11,-10,6,4,8,2,-6,7,5,3,9,-7,6,4,5];
@@ -123,9 +123,34 @@ function presentValueMonthly(nominal){const years=Math.max(0,state.profile.retir
 function goalStatus(){const final=projection().at(-1).end,nominal=expectedMonthly(final),real=presentValueMonthly(nominal),goal=state.settings.goalMonthly,p=goal?clamp(real/goal*100,0,999):100;return {final,nominal,real,goal,p,gap:goal-real}}
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1800)}
 if(!history.state)history.replaceState({base:true},'');
-function openSheet(id,replace=false){document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));document.body.style.overflow='hidden';document.getElementById(id).classList.add('open');if(replace&&history.state?.sheet)history.replaceState({sheet:id},'');else if(history.state?.sheet)history.replaceState({sheet:id},'');else history.pushState({sheet:id},'')}
-function closeSheet(id,fromPop=false){const el=document.getElementById(id);if(!el.classList.contains('open'))return;el.classList.remove('open');document.body.style.overflow='';if(id==='settingsSheet')settingsDraft=null;if(!fromPop&&history.state?.sheet===id)history.back()}
-window.addEventListener('popstate',()=>{const open=document.querySelector('.overlay.open');if(open)closeSheet(open.id,true)});
+function syncModalState(){
+  const locked=!!document.querySelector('.overlay.open,.photoViewer.open,.ocrViewer.open');
+  document.documentElement.classList.toggle('modalOpen',locked);
+  document.body.classList.toggle('modalOpen',locked);
+  document.body.style.removeProperty('overflow');
+  return locked;
+}
+window.syncModalState=syncModalState;
+function openSheet(id,replace=false){
+  const target=document.getElementById(id);if(!target)return false;
+  document.querySelectorAll('.overlay.open').forEach(o=>{if(o!==target)o.classList.remove('open')});
+  target.classList.add('open');syncModalState();
+  if(replace&&history.state?.sheet)history.replaceState({sheet:id},'');
+  else if(history.state?.sheet)history.replaceState({sheet:id},'');
+  else history.pushState({sheet:id},'');
+  return true;
+}
+function closeSheet(id,fromPop=false){
+  const el=document.getElementById(id);if(!el){syncModalState();return false}
+  const wasOpen=el.classList.contains('open');el.classList.remove('open');
+  if(id==='settingsSheet')settingsDraft=null;
+  syncModalState();
+  if(wasOpen&&!fromPop&&history.state?.sheet===id)history.back();
+  return wasOpen;
+}
+window.addEventListener('popstate',()=>{const open=document.querySelector('.overlay.open');if(open)closeSheet(open.id,true);else syncModalState()});
+window.addEventListener('pageshow',()=>syncModalState());
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncModalState()});
 function navigate(screen,accountKey=null){const current=state.ui.screen||'home';document.body.dataset.screen=screen;scrollPos[current]=window.scrollY;if(current===screen){window.scrollTo({top:0,behavior:'smooth'});return}state.ui.screen=screen;if(accountKey)state.ui.accountView=accountKey;document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===screen));const screens=['home','account','analysis','future'],idx=screens.indexOf(screen);document.querySelectorAll('.nav button').forEach((b,i)=>b.classList.toggle('active',i===idx));document.getElementById('navMark').style.left=`calc(${12.5+idx*25}% - 19px)`;const el=document.getElementById(screen);el.classList.remove('enter');requestAnimationFrame(()=>el.classList.add('enter'));if(screen==='account'&&accountKey)renderAccount();requestAnimationFrame(()=>window.scrollTo({top:scrollPos[screen]||0,behavior:'auto'}));save()}
 function renderHome(){const total=totalAsset(),principal=totalPrincipal(),profit=total-principal,ret=principal?profit/principal*100:0,cur=projectNoContribution(),proj=projection(),final=proj.at(-1).end,curPay=expectedMonthly(cur),planPay=expectedMonthly(final),goal=goalStatus(),analysis=lifecycleAnalysis(),status=currentContributionStatus(),planned=['pension','irp'].filter(k=>Number(state.settings.monthly[k])>0),completed=planned.filter(k=>status[k]),done=completed.length,planCount=planned.length,yearPlan=(state.settings.monthly.pension+state.settings.monthly.irp)*12,yearPaid=ensureYear().contribution,paidPct=yearPlan?clamp(yearPaid/yearPlan*100,0,100):0;
  const accountCards=Object.entries(state.accounts).map(([k,a])=>{const at=accountTotal(a),ap=at-a.principal,share=total?at/total*100:0;return `<button class="accountLink" data-account-link="${k}"><div><strong>${esc(a.name)}</strong><small class="tiny">전체의 ${share.toFixed(1)}%</small></div><span class="go">›</span><div class="accountStats"><div><span>원금</span><b>${man(a.principal)}</b></div><div><span>손익</span><b class="${ap>=0?'good':'bad'}">${ap>=0?'+':''}${man(ap)}</b></div><div><span>수익률</span><b class="${accountReturn(a)>=0?'good':'bad'}">${pct(accountReturn(a))}</b></div></div></button>`}).join('');
@@ -174,7 +199,7 @@ function renderDetailForm(title,body){title.textContent='배당·매도 기록';
 function renderAll(keepScreen=false){document.getElementById('headerSub').textContent=`${state.profile.age}세 · ${state.profile.retirementAge}세 연금 개시 계획`;renderHome();renderAccount();renderAnalysis();renderFuture();if(!keepScreen){}navigateInitial()}
 function navigateInitial(){const screen=state.ui.screen||'home';document.body.dataset.screen=screen;document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===screen));const screens=['home','account','analysis','future'],idx=screens.indexOf(screen);document.querySelectorAll('.nav button').forEach((b,i)=>b.classList.toggle('active',i===idx));document.getElementById('navMark').style.left=`calc(${12.5+idx*25}% - 19px)`}
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>navigate(b.dataset.screen));document.getElementById('settingsBtn').onclick=()=>{renderSettings();openSheet('settingsSheet')};document.getElementById('fab').onclick=()=>openSheet('quickSheet');document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>closeSheet(b.dataset.close));document.querySelectorAll('.overlay').forEach(o=>o.onclick=e=>{if(e.target===o)closeSheet(o.id)});document.querySelectorAll('[data-quick]').forEach(b=>b.onclick=()=>quickForm(b.dataset.quick));
-renderAll();hydrateDB();
+renderAll();syncModalState();hydrateDB();
 
 
 /* ===== js/10-v6-compat.js ===== */

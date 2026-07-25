@@ -1,7 +1,7 @@
-/* 개인연금 V3.1 · 그래프/연도 전환 최종 안정화 레이어 */
+/* 개인연금 V3.1.1 · 그래프/연도 전환 최종 안정화 레이어 */
 (()=>{
 'use strict';
-const BUILD='3.1.0';
+const BUILD='3.1.1';
 const N=v=>Number.isFinite(Number(v))?Number(v):0;
 const CHART=window.PensionCharts;
 if(!CHART)throw new Error('차트 엔진을 불러오지 못했습니다.');
@@ -61,7 +61,7 @@ closeSheet=function(){
 window.addEventListener('pagehide',()=>clearInterval(rolloverTimer),{once:true});
 
 syncAge();applyTheme();
-document.title='개인연금 V3.1';
+document.title='개인연금 V3.1.1';
 state.meta.appVersion=BUILD;state.meta.uxBuild='v2.9-graph-rollover-stable';
 if(!['performance','cashflow','compare'].includes(state.ui.analysisPanel))state.ui.analysisPanel='performance';
 if(state.ui.v21CashPeriod==='12m')state.ui.v21CashPeriod='1y';
@@ -337,8 +337,8 @@ renderSettings=function(){
 /* ---------- final render wrapper ---------- */
 const prevAll=renderAll;
 renderAll=function(keep=false){
-  syncAge();state.meta.appVersion=BUILD;applyTheme();document.title='개인연금 V3.1';prevAll(keep);syncAge();state.meta.appVersion=BUILD;renderV21Home();if(state.ui.screen==='analysis')renderAnalysis();if(state.ui.screen==='future')renderFuture();const sub=document.getElementById('headerSub');if(sub)sub.textContent=`${currentAge()}세 · ${state.profile.retirementAge}세 연금 개시 계획`;
+  syncAge();state.meta.appVersion=BUILD;applyTheme();document.title='개인연금 V3.1.1';prevAll(keep);syncAge();state.meta.appVersion=BUILD;renderV21Home();if(state.ui.screen==='analysis')renderAnalysis();if(state.ui.screen==='future')renderFuture();const sub=document.getElementById('headerSub');if(sub)sub.textContent=`${currentAge()}세 · ${state.profile.retirementAge}세 연금 개시 계획`;
 };
 window.PensionV21={build:BUILD,aiDecision,expectedHistory,scenarioProjection,upsertMonthlySummary,applyTheme,compactMoney,axisScale};
-document.title='개인연금 V3.1';renderAll(true);save();
+document.title='개인연금 V3.1.1';renderAll(true);save();
 })();

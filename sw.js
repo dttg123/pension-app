@@ -1,4 +1,4 @@
-const CACHE='pension-v3-1-0';
+const CACHE='pension-v3-1-1';
 const ASSETS=[
   './','./index.html','./manifest.webmanifest','./icon.svg',
   './base.css','./components.css','./features.css','./v21.css','./v29.css',
@@ -19,7 +19,7 @@ self.addEventListener('fetch',event=>{
   event.respondWith((async()=>{
     const cache=await caches.open(CACHE);
     try{
-      const response=await fetch(event.request,{cache:'no-cache'});
+      const response=await fetch(event.request,{cache:event.request.mode==='navigate'?'no-store':'reload'});
       if(response?.ok)await cache.put(event.request,response.clone());
       return response;
     }catch(_){
