@@ -1,6 +1,6 @@
 'use strict';
 
-export const APP_VERSION = '4.0.0';
+export const APP_VERSION = '4.1.0';
 export const SCHEMA_VERSION = 6;
 export const STORAGE_KEY = 'pension-v1';
 export const DB_NAME = 'asset-os-local';

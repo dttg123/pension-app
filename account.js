@@ -108,23 +108,43 @@ function openHoldingDetail(accountKey, holdingId, ctx) {
 
 function openAllocation(accountKey, ctx) {
   const state = ctx.state();
+  const account = state.accounts[accountKey];
+  const total = accountTotal(account);
   const rows = allocation(state, accountKey);
   const active = rows.filter(row => row.value > 0);
   const gradient = active.length ? buildGradient(active) : '#e2e8f0 0 100%';
-  const holdingCount = state.accounts[accountKey].holdings.length;
+  const holdingCount = account.holdings.length;
   openModal({
-    title: `${state.accounts[accountKey].name} 자산 구성`,
+    title: `${account.name} 자산 구성`,
     size: 'compact',
     html: `
       <div class="donutWrap">
         <div class="donut compactDonut" style="background:conic-gradient(${gradient})"><div><b>${holdingCount}</b><span>종목</span></div></div>
       </div>
-      <div class="allocationList">
-        ${rows.map(row => `<div><span><i style="--asset:${row.color}"></i>${escapeHtml(row.name)}</span><b>${row.current.toFixed(1)}%</b><small>목표 ${row.target}% · ${row.gap > 0 ? `${row.gap.toFixed(1)}% 부족` : `${Math.abs(row.gap).toFixed(1)}% 초과`}</small></div>`).join('')}
+      <div class="allocationList allocationAccordion">
+        ${rows.map(row => allocationGroup(row, account, total)).join('')}
       </div>
-      ${accountKey === 'irp' ? `<div class="sheetNotice">IRP 위험자산 비중 ${irpRiskRatio(state).toFixed(1)}% · 앱에 저장된 분류 기준입니다.</div>` : ''}
+      ${accountKey === 'irp' ? `<div class="sheetNotice">IRP 위험자산 비중 ${irpRiskRatio(state).toFixed(1)}% · 법정 분류는 증권사 기준이 우선입니다.</div>` : ''}
     `,
   });
+}
+
+function allocationGroup(row, account, total) {
+  const holdings = (account.holdings || []).filter(item => item.class === row.id).sort((a, b) => num(b.value) - num(a.value));
+  const items = row.id === 'cash' && num(account.cash) > 0
+    ? [{ id: 'cash', name: '대기자금', value: num(account.cash), qty: 0, cash: true }, ...holdings]
+    : holdings;
+  const status = row.gap > 0.05 ? `${row.gap.toFixed(1)}%p 부족` : row.gap < -0.05 ? `${Math.abs(row.gap).toFixed(1)}%p 초과` : '목표 범위';
+  return `
+    <details class="allocationGroup">
+      <summary>
+        <span class="allocationName"><i style="--asset:${row.color}"></i><b>${escapeHtml(row.name)}</b><small>목표 ${row.target}% · ${status}</small></span>
+        <strong>${row.current.toFixed(1)}%</strong><em>⌄</em>
+      </summary>
+      <div class="allocationHoldings">
+        ${items.length ? items.map(item => `<div><span><b>${escapeHtml(item.name)}</b><small>${item.cash ? '현금성 자산' : `${num(item.qty).toLocaleString('ko-KR')}주`}</small></span><span><b>${compactMoney(item.value)}</b><small>${total ? (num(item.value) / total * 100).toFixed(1) : '0.0'}%</small></span></div>`).join('') : `<p>등록된 ${escapeHtml(row.name)} 상품이 없습니다.</p>`}
+      </div>
+    </details>`;
 }
 
 function buildGradient(rows) {

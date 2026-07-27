@@ -1,10 +1,10 @@
 'use strict';
 
-const CACHE = 'pension-v4.0.0';
+const CACHE = 'pension-v4.1.0';
 const ASSETS = [
   './', './index.html', './app.css', './state.js', './storage.js', './transactions.js', './ui.js',
   './home.js', './account.js', './analysis.js', './future.js', './input.js', './ocr.js', './backup.js',
-  './settings.js', './app.js', './manifest.webmanifest', './icon.svg'
+  './settings.js', './charts.js', './app.js', './manifest.webmanifest', './icon.svg'
 ];
 
 self.addEventListener('install', event => {

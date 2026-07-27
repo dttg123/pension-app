@@ -9,17 +9,17 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
-  <title>개인연금 V4.0.0</title>
+  <title>개인연금 V4.1.0</title>
   <script>
     (()=>{try{const raw=localStorage.getItem('pension-v1');const mode=raw?JSON.parse(raw)?.settings?.theme:'auto';const dark=mode==='dark'||(mode!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=dark?'dark':'light';document.documentElement.dataset.themeMode=['auto','light','dark'].includes(mode)?mode:'auto'}catch(_){document.documentElement.dataset.theme='light';document.documentElement.dataset.themeMode='auto'}})();
   </script>
-  <link rel="stylesheet" href="app.css?v=4.0.0">
+  <link rel="stylesheet" href="app.css?v=4.1.0">
 </head>
 <body>
   <div class="appShell">
     <header class="topbar">
       <div class="brand">
-        <div class="brandLine"><h1>개인연금</h1><button id="versionBadge" class="versionBadge" aria-label="앱 버전 V4.0.0 정보">V4.0.0</button></div>
+        <div class="brandLine"><h1>개인연금</h1><button id="versionBadge" class="versionBadge" aria-label="앱 버전 V4.1.0 정보">V4.1.0</button></div>
         <div class="subtitle" id="headerSub"></div>
       </div>
       <button class="iconBtn" id="settingsBtn" aria-label="설정 열기">
@@ -53,6 +53,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <noscript>이 앱을 사용하려면 JavaScript를 켜야 합니다.</noscript>
-  <script type="module" src="app.js?v=4.0.0"></script>
+  <script type="module" src="app.js?v=4.1.0"></script>
 </body>
 </html>

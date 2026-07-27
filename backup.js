@@ -10,7 +10,7 @@ import { closeModal, confirmAction, openModal, setBusy, toast } from './ui.js';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const REQUIRED_FILES = ['full-backup.json', 'accounts.csv', 'transactions.csv', 'contributions.csv', 'dividends.csv', 'snapshots.csv', 'settings.csv', 'backup-schema.txt', 'manifest.json'];
-export const PROJECT_FILES = ['index.html', 'app.css', 'state.js', 'storage.js', 'transactions.js', 'ui.js', 'home.js', 'account.js', 'analysis.js', 'future.js', 'input.js', 'ocr.js', 'backup.js', 'settings.js', 'app.js', 'manifest.webmanifest', 'sw.js', 'icon.svg'];
+export const PROJECT_FILES = ['index.html', 'app.css', 'state.js', 'storage.js', 'transactions.js', 'ui.js', 'home.js', 'account.js', 'analysis.js', 'charts.js', 'future.js', 'input.js', 'ocr.js', 'backup.js', 'settings.js', 'app.js', 'manifest.webmanifest', 'sw.js', 'icon.svg'];
 
 export function openDataCenter(ctx) {
   const state = getState();
@@ -131,7 +131,7 @@ export async function buildProjectBackup(inputState = getState()) {
     if (!reopened[name]) throw new Error(`프로젝트 ZIP 파일 누락: ${name}`);
     if (await sha256(reopened[name]) !== meta.sha256) throw new Error(`프로젝트 파일 체크섬 불일치: ${name}`);
   }
-  return { bytes, blob: new Blob([bytes], { type: 'application/zip' }), fileName: `pension-v4_${fileStamp()}.zip`, manifest };
+  return { bytes, blob: new Blob([bytes], { type: 'application/zip' }), fileName: `pension-v4.1_${fileStamp()}.zip`, manifest };
 }
 
 function buildFiles(state) {
@@ -170,7 +170,7 @@ function buildFiles(state) {
       ['annualContributionLimit', state.settings.annualContributionLimit],
       ['taxCreditLimit', state.settings.taxCreditLimit],
     ]),
-    'backup-schema.txt': `개인연금 V4 백업 규격\nappVersion: ${APP_VERSION}\nschemaVersion: ${SCHEMA_VERSION}\n\nfull-backup.json: 전체 복원 원본\naccounts.csv: 계좌 요약\ntransactions.csv: 전체 원장\ncontributions.csv: 납입 기록\ndividends.csv: 분배금 기록\nsnapshots.csv: 자산 스냅샷\nsettings.csv: 설정\nmanifest.json: 파일 목록·개수·SHA-256\n\n복원은 원본을 복사하고 검증한 뒤 성공 시에만 교체합니다.`,
+    'backup-schema.txt': `개인연금 V4.1 백업 규격\nappVersion: ${APP_VERSION}\nschemaVersion: ${SCHEMA_VERSION}\n\nfull-backup.json: 전체 복원 원본\naccounts.csv: 계좌 요약\ntransactions.csv: 전체 원장\ncontributions.csv: 납입 기록\ndividends.csv: 분배금 기록\nsnapshots.csv: 자산 스냅샷\nsettings.csv: 설정\nmanifest.json: 파일 목록·개수·SHA-256\n\n복원은 원본을 복사하고 검증한 뒤 성공 시에만 교체합니다.`,
   };
 }
 
